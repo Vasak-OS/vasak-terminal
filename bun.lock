@@ -5,27 +5,29 @@
     "": {
       "name": "vapp",
       "dependencies": {
-        "@tailwindcss/vite": "^4.2.0",
+        "@tailwindcss/vite": "^4.2.1",
         "@tauri-apps/api": "^2.10.1",
         "@tauri-apps/plugin-shell": "^2.3.5",
-        "@vasakgroup/plugin-config-manager": "^2.2.1",
+        "@vasakgroup/plugin-config-manager": "^2.2.2",
         "@vasakgroup/plugin-vicons": "^2.0.0",
         "path": "^0.12.7",
         "pinia": "^3.0.4",
         "url": "^0.11.4",
-        "vue": "^3.5.28",
+        "vue": "^3.5.30",
+        "xterm": "^5.3.0",
+        "xterm-addon-fit": "^0.8.0",
       },
       "devDependencies": {
-        "@biomejs/biome": "^2.4.4",
-        "@tailwindcss/postcss": "^4.2.0",
-        "@tauri-apps/cli": "^2.10.0",
-        "@types/node": "^25.3.0",
+        "@biomejs/biome": "^2.4.6",
+        "@tailwindcss/postcss": "^4.2.1",
+        "@tauri-apps/cli": "^2.10.1",
+        "@types/node": "^25.4.0",
         "@vitejs/plugin-vue": "^6.0.4",
-        "postcss": "^8.5.6",
-        "tailwindcss": "^4.2.0",
+        "postcss": "^8.5.8",
+        "tailwindcss": "^4.2.1",
         "typescript": "^5.9.3",
         "vite": "^7.3.1",
-        "vue-tsc": "^3.2.4",
+        "vue-tsc": "^3.2.5",
       },
     },
   },
@@ -415,6 +417,10 @@
     "vue": ["vue@3.5.30", "", { "dependencies": { "@vue/compiler-dom": "3.5.30", "@vue/compiler-sfc": "3.5.30", "@vue/runtime-dom": "3.5.30", "@vue/server-renderer": "3.5.30", "@vue/shared": "3.5.30" }, "peerDependencies": { "typescript": "*" }, "optionalPeers": ["typescript"] }, "sha512-hTHLc6VNZyzzEH/l7PFGjpcTvUgiaPK5mdLkbjrTeWSRcEfxFrv56g/XckIYlE9ckuobsdwqd5mk2g1sBkMewg=="],
 
     "vue-tsc": ["vue-tsc@3.2.5", "", { "dependencies": { "@volar/typescript": "2.4.28", "@vue/language-core": "3.2.5" }, "peerDependencies": { "typescript": ">=5.0.0" }, "bin": { "vue-tsc": "bin/vue-tsc.js" } }, "sha512-/htfTCMluQ+P2FISGAooul8kO4JMheOTCbCy4M6dYnYYjqLe3BExZudAua6MSIKSFYQtFOYAll7XobYwcpokGA=="],
+
+    "xterm": ["xterm@5.3.0", "", {}, "sha512-8QqjlekLUFTrU6x7xck1MsPzPA571K5zNqWm0M0oroYEWVOptZ0+ubQSkQ3uxIEhcIHRujJy6emDWX4A7qyFzg=="],
+
+    "xterm-addon-fit": ["xterm-addon-fit@0.8.0", "", { "peerDependencies": { "xterm": "^5.0.0" } }, "sha512-yj3Np7XlvxxhYF/EJ7p3KHaMt6OdwQ+HDu573Vx1lRXsVxOcnVJs51RgjZOouIZOczTsskaS+CpXspK81/DLqw=="],
 
     "yaml": ["yaml@2.8.2", "", { "bin": { "yaml": "bin.mjs" } }, "sha512-mplynKqc1C2hTVYxd0PU2xQAc22TI1vShAYGksCCfxbn/dFwnHTNi1bvYsBTkhdUNtGIf5xNOg938rrSSYvS9A=="],
 

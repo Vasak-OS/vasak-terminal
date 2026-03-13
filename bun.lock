@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "vapp",
+      "name": "vasak-terminal",
       "dependencies": {
         "@tailwindcss/vite": "^4.2.1",
         "@tauri-apps/api": "^2.10.1",

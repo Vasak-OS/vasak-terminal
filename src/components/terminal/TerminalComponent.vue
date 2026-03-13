@@ -28,6 +28,7 @@ const term = new Terminal({
 let terminalDataDisposable: (() => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let isPtyReadLoopActive = false;
+let isShellReady = false;
 
 function onResize() {
 	fitTerminal();
@@ -40,6 +41,11 @@ async function fitTerminal() {
 	}
 
 	fitAddon.fit();
+
+	if (!isShellReady) {
+		return;
+	}
+
 	void invoke<string>('async_resize_pty', {
 		sessionId: props.sessionId,
 		rows: term.rows,
@@ -88,8 +94,10 @@ function writeToPty(data: string) {
 	});
 }
 function initShell() {
-	invoke('async_create_shell', {
+	return invoke('async_create_shell', {
 		sessionId: props.sessionId,
+		rows: term.rows,
+		cols: term.cols,
 	}).catch((error) => {
 		console.error('Error creating shell:', error);
 	});
@@ -103,8 +111,10 @@ onMounted(() => {
 	term.loadAddon(fitAddon);
 	term.open(terminalElement.value);
 
-	initShell();
-	void nextTick().then(() => {
+	void nextTick().then(async () => {
+		fitAddon.fit();
+		await initShell();
+		isShellReady = true;
 		fitTerminal();
 	});
 

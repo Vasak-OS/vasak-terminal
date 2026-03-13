@@ -10,11 +10,11 @@ use tauri::State;
 
 use crate::structs::{AppState, TerminalSession};
 
-fn create_terminal_session() -> Result<Arc<TerminalSession>, String> {
+fn create_terminal_session(rows: u16, cols: u16) -> Result<Arc<TerminalSession>, String> {
     let pty_pair = native_pty_system()
         .openpty(PtySize {
-            rows: 24,
-            cols: 80,
+            rows: rows.max(1),
+            cols: cols.max(1),
             pixel_width: 0,
             pixel_height: 0,
         })
@@ -41,6 +41,8 @@ fn create_terminal_session() -> Result<Arc<TerminalSession>, String> {
 async fn get_or_create_session(
     state: &State<'_, AppState>,
     session_id: &str,
+    rows: u16,
+    cols: u16,
 ) -> Result<Arc<TerminalSession>, String> {
     let mut sessions = state.sessions.lock().await;
 
@@ -48,7 +50,7 @@ async fn get_or_create_session(
         return Ok(Arc::clone(session));
     }
 
-    let new_session = create_terminal_session()?;
+    let new_session = create_terminal_session(rows, cols)?;
     sessions.insert(session_id.to_string(), Arc::clone(&new_session));
     Ok(new_session)
 }
@@ -63,8 +65,13 @@ async fn get_session(state: &State<'_, AppState>, session_id: &str) -> Result<Ar
 
 #[tauri::command]
 // create a shell and add to it the $TERM env variable so we can use clear and other commands
-pub async fn async_create_shell(session_id: &str, state: State<'_, AppState>) -> Result<(), String> {
-    let session = get_or_create_session(&state, session_id).await?;
+pub async fn async_create_shell(
+    session_id: &str,
+    rows: u16,
+    cols: u16,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let session = get_or_create_session(&state, session_id, rows, cols).await?;
 
     // This command can be invoked more than once on remount/HMR.
     // If a shell already exists for this PTY, treat it as success.

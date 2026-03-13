@@ -2,11 +2,17 @@
 import { Terminal } from "xterm";
 import { FitAddon } from "xterm-addon-fit";
 import { invoke } from "@tauri-apps/api/core";
-import { onBeforeUnmount, onMounted, nextTick, ref } from "vue";
+import { onBeforeUnmount, onMounted, nextTick, ref, watch } from "vue";
 
-const props = defineProps<{
-  sessionId: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    sessionId: string;
+    active?: boolean;
+  }>(),
+  {
+    active: true,
+  }
+);
 
 const terminalElement = ref<HTMLElement | null>(null);
 
@@ -28,7 +34,7 @@ function onResize() {
 
 // Make the terminal fit all the window size
 async function fitTerminal() {
-  if (!terminalElement.value) {
+  if (!terminalElement.value || !props.active) {
     return;
   }
 
@@ -118,6 +124,17 @@ onMounted(() => {
   });
   resizeObserver.observe(terminalElement.value);
 });
+
+watch(
+  () => props.active,
+  (isActive) => {
+    if (isActive) {
+      void nextTick().then(() => {
+        fitTerminal();
+      });
+    }
+  }
+);
 
 onBeforeUnmount(() => {
   isPtyReadLoopActive = false;

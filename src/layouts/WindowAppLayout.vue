@@ -7,6 +7,9 @@ import { useWorkspacesStore } from '@/stores/workspaces';
 
 const workspacesStore = useWorkspacesStore();
 const currentSessionId = computed(() => workspacesStore.currentTab?.id ?? '');
+const tabGroups = computed(() =>
+  (workspacesStore.currentWorkspace?.tabGroups ?? []).filter((tabGroup) => Boolean(tabGroup?.[0]))
+);
 </script>
 <template>
   <div
@@ -15,7 +18,13 @@ const currentSessionId = computed(() => workspacesStore.currentTab?.id ?? '');
       <TabBarComponent teleport-target="" />
     </TopBarComponent>
     <div class="flex-1 flex p-1">
-      <TerminalComponent v-if="currentSessionId" :key="currentSessionId" :session-id="currentSessionId" />
+      <TerminalComponent
+        v-for="tabGroup in tabGroups"
+        :key="tabGroup[0].id"
+        v-show="tabGroup[0].id === currentSessionId"
+        :session-id="tabGroup[0].id"
+        :active="tabGroup[0].id === currentSessionId"
+      />
     </div>
   </div>
 </template>

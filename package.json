@@ -30,12 +30,12 @@
     "xterm-addon-fit": "^0.8.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.6",
+    "@biomejs/biome": "^2.4.7",
     "@tailwindcss/postcss": "^4.2.1",
     "@tauri-apps/cli": "^2.10.1",
     "@types/lodash.clonedeep": "^4.5.9",
-    "@types/node": "^25.4.0",
-    "@vitejs/plugin-vue": "^6.0.4",
+    "@types/node": "^25.5.0",
+    "@vitejs/plugin-vue": "^6.0.5",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",

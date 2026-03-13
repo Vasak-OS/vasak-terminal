@@ -1,5 +1,11 @@
 <script lang="ts" setup>
 import { invoke } from '@tauri-apps/api/core';
+import {
+	getSchemeById,
+	useConfigStore,
+	VSKConfig,
+} from '@vasakgroup/plugin-config-manager';
+import { Store } from 'pinia';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
@@ -14,6 +20,10 @@ const props = withDefaults(
 	}
 );
 
+const configStore = useConfigStore() as Store<
+	'config',
+	{ config: VSKConfig; loadConfig: () => Promise<void> }
+>;
 const terminalElement = ref<HTMLElement | null>(null);
 
 const fitAddon = new FitAddon();
@@ -79,6 +89,40 @@ async function startPtyReadLoop() {
 	}
 }
 
+const setTerminalConfig = async () => {
+	const conf = configStore.config as VSKConfig | null;
+	if (!conf) return;
+
+	const scheme = await getSchemeById(conf.style['color-scheme']);
+	if (!scheme) return;
+
+	const darkOrLight = conf.style.darkmode ? 'dark' : 'light';
+	const ansi = scheme.scheme.colors[darkOrLight].terminal.ansi;
+	const termColors = scheme.scheme.colors[darkOrLight].terminal;
+
+	term.options.theme = {
+		background: 'rgba(0, 0, 0, 0)',
+		foreground: termColors.foreground,
+		cursor: termColors.cursor,
+		black: ansi.black,
+		red: ansi.red,
+		green: ansi.green,
+		yellow: ansi.yellow,
+		blue: ansi.blue,
+		magenta: ansi.magenta,
+		cyan: ansi.cyan,
+		white: ansi.white,
+		brightBlack: ansi.brightBlack,
+		brightRed: ansi.brightRed,
+		brightGreen: ansi.brightGreen,
+		brightYellow: ansi.brightYellow,
+		brightBlue: ansi.brightBlue,
+		brightMagenta: ansi.brightMagenta,
+		brightCyan: ansi.brightCyan,
+		brightWhite: ansi.brightWhite,
+	};
+};
+
 // Write data from pty into the terminal
 function writeToTerminal(data: string) {
 	return new Promise<void>((r) => {
@@ -103,7 +147,7 @@ function initShell() {
 	});
 }
 
-onMounted(() => {
+onMounted(async () => {
 	if (!terminalElement.value) {
 		return;
 	}
@@ -135,6 +179,17 @@ onMounted(() => {
 	});
 	resizeObserver.observe(terminalElement.value);
 });
+
+watch(
+	() => {
+		const conf = configStore.config as VSKConfig | null;
+		return conf?.style ?? null;
+	},
+	() => {
+		void setTerminalConfig();
+	},
+	{ deep: true, immediate: true }
+);
 
 watch(
 	() => props.active,

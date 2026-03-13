@@ -6,7 +6,7 @@ import TabDraggableComponent from '@/components/tab/TabDraggableComponent.vue';
 import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
 import TooltipContent from '@/components/ui/tooltip/TooltipContent.vue';
 import TooltipTrigger from '@/components/ui/tooltip/TooltipTrigger.vue';
-import { useWorkspacesStore } from '@/stores/storage/workspaces';
+import { useWorkspacesStore } from '@/stores/workspaces';
 import type { TabGroup, Tab as TabType } from '@/types/workspaces';
 
 const props = withDefaults(

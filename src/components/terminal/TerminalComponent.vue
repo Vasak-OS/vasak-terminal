@@ -4,6 +4,10 @@ import { FitAddon } from "xterm-addon-fit";
 import { invoke } from "@tauri-apps/api/core";
 import { onBeforeUnmount, onMounted, nextTick, ref } from "vue";
 
+const props = defineProps<{
+  sessionId: string;
+}>();
+
 const terminalElement = ref<HTMLElement | null>(null);
 
 const fitAddon = new FitAddon();
@@ -14,7 +18,6 @@ const term = new Terminal({
   },
 });
 
-let unlistenPtyData: (() => void) | null = null;
 let terminalDataDisposable: (() => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let isPtyReadLoopActive = false;
@@ -31,6 +34,7 @@ async function fitTerminal() {
 
   fitAddon.fit();
   void invoke<string>("async_resize_pty", {
+    sessionId: props.sessionId,
     rows: term.rows,
     cols: term.cols,
   });
@@ -47,7 +51,9 @@ async function startPtyReadLoop() {
 
   while (isPtyReadLoopActive) {
     try {
-      const data = await invoke<string | null>("async_read_from_pty");
+      const data = await invoke<string | null>("async_read_from_pty", {
+        sessionId: props.sessionId,
+      });
       if (data) {
         await writeToTerminal(data);
       } else {
@@ -70,12 +76,14 @@ function writeToTerminal(data: string) {
 // Write data from the terminal to the pty
 function writeToPty(data: string) {
   void invoke("async_write_to_pty", {
+    sessionId: props.sessionId,
     data,
   });
 }
 function initShell() {
-  invoke("async_create_shell").catch((error) => {
-    // on linux it seem to to "Operation not permitted (os error 1)" but it still works because echo $SHELL give /bin/bash
+  invoke("async_create_shell", {
+    sessionId: props.sessionId,
+  }).catch((error) => {
     console.error("Error creating shell:", error);
   });
 }
@@ -113,8 +121,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   isPtyReadLoopActive = false;
-  unlistenPtyData?.();
-  unlistenPtyData = null;
   terminalDataDisposable?.();
   terminalDataDisposable = null;
   resizeObserver?.disconnect();

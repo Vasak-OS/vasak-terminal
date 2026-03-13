@@ -9,7 +9,7 @@ import DropdownMenuTrigger from '@/components/ui/dropdown/DropdownMenuTrigger.vu
 import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
 import TooltipContent from '@/components/ui/tooltip/TooltipContent.vue';
 import TooltipTrigger from '@/components/ui/tooltip/TooltipTrigger.vue';
-import { useWorkspacesStore } from '@/stores/storage/workspaces';
+import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab } from '@/types/workspaces';
 import { useEventListener } from '@/utils/event-listener';
 import { useTimeoutFn } from '@/utils/timeout';

@@ -1,5 +1,3 @@
-import type { DirEntry } from './dir-entry';
-
 export type Workspace = {
 	id: number;
 	isPrimary: boolean;
@@ -18,8 +16,6 @@ export type Tab = {
 	type: 'directory' | 'file' | 'search';
 	paneWidth: number;
 	filterQuery: string;
-	dirEntries: DirEntry[];
-	selectedDirEntries: DirEntry[];
 };
 
 export type TabGroup = Tab[];

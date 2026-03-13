@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import TopBarComponent from '@/components/topbar/TopBarComponent.vue';
+import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
 </script>
 <template>
   <div
@@ -7,7 +8,7 @@ import TopBarComponent from '@/components/topbar/TopBarComponent.vue';
     <TopBarComponent>
     </TopBarComponent>
     <div class="flex-1 flex p-1">
-      <p>VAPP</p>
+      <TerminalComponent />
     </div>
   </div>
 </template>

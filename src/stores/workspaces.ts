@@ -1,7 +1,7 @@
+import { invoke } from '@tauri-apps/api/core';
 import { defineStore } from 'pinia';
 import type { ComputedRef } from 'vue';
 import { computed, ref } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
 import type { Tab, TabGroup, Workspace } from '@/types/workspaces';
 import uniqueId from '@/utils/unique-id';
 
@@ -154,7 +154,9 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 			return;
 		}
 
-		const groupsToClose = workspace.tabGroups.filter((group) => group[0]?.id !== groupToKeep[0]?.id);
+		const groupsToClose = workspace.tabGroups.filter(
+			(group) => group[0]?.id !== groupToKeep[0]?.id
+		);
 		await Promise.all(groupsToClose.map((group) => closeTabGroupSessions(group)));
 
 		workspace.tabGroups = [groupToKeep];
@@ -202,7 +204,9 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 			return;
 		}
 
-		const tabGroupIndex = workspace.tabGroups.findIndex((group) => group[0]?.id === tabGroup[0]?.id);
+		const tabGroupIndex = workspace.tabGroups.findIndex(
+			(group) => group[0]?.id === tabGroup[0]?.id
+		);
 		if (tabGroupIndex === -1) {
 			return;
 		}

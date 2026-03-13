@@ -1,14 +1,17 @@
 <script lang="ts" setup>
 import { computed } from 'vue';
-import TopBarComponent from '@/components/topbar/TopBarComponent.vue';
-import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
 import TabBarComponent from '@/components/tab/TabBarComponent.vue';
+import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
+import TopBarComponent from '@/components/topbar/TopBarComponent.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
+import type { Tab } from '@/types/workspaces';
 
 const workspacesStore = useWorkspacesStore();
 const currentSessionId = computed(() => workspacesStore.currentTab?.id ?? '');
-const tabGroups = computed(() =>
-  (workspacesStore.currentWorkspace?.tabGroups ?? []).filter((tabGroup) => Boolean(tabGroup?.[0]))
+const terminalTabs = computed<Tab[]>(() =>
+	(workspacesStore.currentWorkspace?.tabGroups ?? [])
+		.map((tabGroup) => tabGroup?.[0])
+		.filter((tab): tab is Tab => Boolean(tab))
 );
 </script>
 <template>
@@ -19,11 +22,11 @@ const tabGroups = computed(() =>
     </TopBarComponent>
     <div class="flex-1 flex p-1">
       <TerminalComponent
-        v-for="tabGroup in tabGroups"
-        :key="tabGroup[0].id"
-        v-show="tabGroup[0].id === currentSessionId"
-        :session-id="tabGroup[0].id"
-        :active="tabGroup[0].id === currentSessionId"
+        v-for="tab in terminalTabs"
+        :key="tab.id"
+        v-show="tab.id === currentSessionId"
+        :session-id="tab.id"
+        :active="tab.id === currentSessionId"
       />
     </div>
   </div>

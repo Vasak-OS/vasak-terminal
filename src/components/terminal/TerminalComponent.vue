@@ -1,10 +1,6 @@
 <script lang="ts" setup>
 import { invoke } from '@tauri-apps/api/core';
-import {
-	getSchemeById,
-	useConfigStore,
-	VSKConfig,
-} from '@vasakgroup/plugin-config-manager';
+import { getSchemeById, useConfigStore, VSKConfig } from '@vasakgroup/plugin-config-manager';
 import { Store } from 'pinia';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Terminal } from 'xterm';

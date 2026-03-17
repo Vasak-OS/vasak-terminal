@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Vasak Terminal",
+  "productName": "vasak-terminal",
   "version": "0.1.0",
   "identifier": "ar.net.vasak.vasak-terminal",
   "build": {

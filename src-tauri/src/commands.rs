@@ -1,7 +1,10 @@
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use serde::Serialize;
 use std::{
     env,
+    fs,
     io::{BufRead, Write},
+    path::Path,
     sync::Arc,
     thread,
 };
@@ -35,7 +38,154 @@ fn create_terminal_session(rows: u16, cols: u16) -> Result<Arc<TerminalSession>,
         writer: tauri::async_runtime::Mutex::new(writer),
         reader: tauri::async_runtime::Mutex::new(std::io::BufReader::new(reader)),
         shell_started: tauri::async_runtime::Mutex::new(false),
+        shell_pid: tauri::async_runtime::Mutex::new(None),
     }))
+}
+
+#[derive(Serialize)]
+pub struct ShellStatus {
+    pub cwd: Option<String>,
+    pub running_command: Option<String>,
+}
+
+fn default_shell_status() -> ShellStatus {
+    ShellStatus {
+        cwd: None,
+        running_command: None,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn read_proc_stat_pgrp_tpgid(pid: u32) -> Option<(i32, i32)> {
+    let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    let end = stat.rfind(')')?;
+    let rest = stat.get(end + 2..)?;
+    let fields: Vec<&str> = rest.split_whitespace().collect();
+    if fields.len() < 6 {
+        return None;
+    }
+
+    let pgrp = fields.get(2)?.parse::<i32>().ok()?;
+    let tpgid = fields.get(5)?.parse::<i32>().ok()?;
+    Some((pgrp, tpgid))
+}
+
+#[cfg(target_os = "linux")]
+fn read_proc_cmdline(pid: u32) -> Option<String> {
+    let data = fs::read(format!("/proc/{pid}/cmdline")).ok()?;
+    if data.is_empty() {
+        return None;
+    }
+
+    let parts: Vec<String> = data
+        .split(|b| *b == 0)
+        .filter(|v| !v.is_empty())
+        .map(|v| String::from_utf8_lossy(v).to_string())
+        .collect();
+
+    if parts.is_empty() {
+        return None;
+    }
+
+    let joined = parts.join(" ");
+    if joined.len() > 120 {
+        return Some(format!("{}...", &joined[..117]));
+    }
+    Some(joined)
+}
+
+#[cfg(target_os = "linux")]
+fn read_proc_comm(pid: u32) -> Option<String> {
+    fs::read_to_string(format!("/proc/{pid}/comm"))
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
+#[cfg(target_os = "linux")]
+fn basename(path: &str) -> String {
+    Path::new(path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(ToString::to_string)
+        .unwrap_or_else(|| path.to_string())
+}
+
+#[cfg(target_os = "linux")]
+fn read_shell_status_linux(shell_pid: u32) -> ShellStatus {
+    let cwd = fs::read_link(format!("/proc/{shell_pid}/cwd"))
+        .ok()
+        .map(|path| path.to_string_lossy().to_string());
+
+    let (_, tpgid) = match read_proc_stat_pgrp_tpgid(shell_pid) {
+        Some(values) => values,
+        None => {
+            return ShellStatus {
+                cwd,
+                running_command: None,
+            };
+        }
+    };
+
+    if tpgid <= 0 {
+        return ShellStatus {
+            cwd,
+            running_command: None,
+        };
+    }
+
+    let mut best_pid: Option<u32> = None;
+    let mut shell_name = read_proc_comm(shell_pid).unwrap_or_default().to_lowercase();
+    if shell_name.is_empty() {
+        shell_name = basename(
+            &read_proc_cmdline(shell_pid)
+                .unwrap_or_default()
+                .split_whitespace()
+                .next()
+                .unwrap_or_default()
+                .to_string(),
+        )
+        .to_lowercase();
+    }
+
+    if let Ok(entries) = fs::read_dir("/proc") {
+        for entry in entries.flatten() {
+            let file_name = entry.file_name();
+            let pid = match file_name.to_string_lossy().parse::<u32>() {
+                Ok(pid) => pid,
+                Err(_) => continue,
+            };
+
+            let (pgrp, _) = match read_proc_stat_pgrp_tpgid(pid) {
+                Some(values) => values,
+                None => continue,
+            };
+
+            if pgrp != tpgid {
+                continue;
+            }
+
+            if pid == shell_pid {
+                continue;
+            }
+
+            let comm = read_proc_comm(pid).unwrap_or_default().to_lowercase();
+            if !comm.is_empty() && comm == shell_name {
+                continue;
+            }
+
+            best_pid = Some(best_pid.map_or(pid, |best| best.max(pid)));
+        }
+    }
+
+    let running_command = best_pid.and_then(read_proc_cmdline).or_else(|| {
+        best_pid.and_then(read_proc_comm)
+    });
+
+    ShellStatus {
+        cwd,
+        running_command,
+    }
 }
 
 async fn get_or_create_session(
@@ -106,6 +256,11 @@ pub async fn async_create_shell(
 
         match session.pty_pair.lock().await.slave.spawn_command(cmd) {
             Ok(mut child) => {
+                let pid = child.process_id();
+                if let Some(shell_pid) = pid {
+                    let mut session_shell_pid = session.shell_pid.lock().await;
+                    *session_shell_pid = Some(shell_pid);
+                }
                 thread::spawn(move || {
                     let _ = child.wait();
                 });
@@ -184,4 +339,27 @@ pub async fn async_close_shell(session_id: &str, state: State<'_, AppState>) -> 
     let mut sessions = state.sessions.lock().await;
     sessions.remove(session_id);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn async_get_shell_status(
+    session_id: &str,
+    state: State<'_, AppState>,
+) -> Result<ShellStatus, String> {
+    let session = get_session(&state, session_id).await?;
+    let shell_pid = *session.shell_pid.lock().await;
+
+    let Some(shell_pid) = shell_pid else {
+        return Ok(default_shell_status());
+    };
+
+    #[cfg(target_os = "linux")]
+    {
+        return Ok(read_shell_status_linux(shell_pid));
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        Ok(default_shell_status())
+    }
 }

@@ -11,6 +11,7 @@ pub struct TerminalSession {
     pub writer: AsyncMutex<Box<dyn Write + Send>>,
     pub reader: AsyncMutex<BufReader<Box<dyn Read + Send>>>,
     pub shell_started: AsyncMutex<bool>,
+    pub shell_pid: AsyncMutex<Option<u32>>,
 }
 
 pub struct AppState {

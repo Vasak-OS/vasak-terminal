@@ -2,7 +2,8 @@ mod commands;
 mod structs;
 
 use crate::commands::{
-    async_close_shell, async_create_shell, async_read_from_pty, async_resize_pty, async_write_to_pty,
+    async_close_shell, async_create_shell, async_get_shell_status, async_read_from_pty,
+    async_resize_pty, async_write_to_pty,
 };
 use crate::structs::AppState;
 use std::{collections::HashMap, sync::Arc};
@@ -18,7 +19,8 @@ pub fn run() {
             async_resize_pty,
             async_create_shell,
             async_read_from_pty,
-            async_close_shell
+            async_close_shell,
+            async_get_shell_status
         ])
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_config_manager::init())

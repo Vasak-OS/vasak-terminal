@@ -5,6 +5,7 @@ import { Store } from 'pinia';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
+import { useWorkspacesStore } from '@/stores/workspaces';
 
 const props = withDefaults(
 	defineProps<{
@@ -20,6 +21,7 @@ const configStore = useConfigStore() as Store<
 	'config',
 	{ config: VSKConfig; loadConfig: () => Promise<void> }
 >;
+const workspacesStore = useWorkspacesStore();
 const terminalElement = ref<HTMLElement | null>(null);
 
 const fitAddon = new FitAddon();
@@ -35,6 +37,12 @@ let terminalDataDisposable: (() => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let isPtyReadLoopActive = false;
 let isShellReady = false;
+let shellStatusIntervalId: ReturnType<typeof setInterval> | null = null;
+
+type ShellStatus = {
+	cwd?: string;
+	running_command?: string;
+};
 
 function onResize() {
 	fitTerminal();
@@ -143,6 +151,25 @@ function initShell() {
 	});
 }
 
+async function syncShellStatus() {
+	if (!isShellReady) {
+		return;
+	}
+
+	try {
+		const status = await invoke<ShellStatus>('async_get_shell_status', {
+			sessionId: props.sessionId,
+		});
+
+		workspacesStore.setTabRuntimeInfo(props.sessionId, {
+			runtimeCwd: status.cwd || undefined,
+			runtimeCommand: status.running_command || undefined,
+		});
+	} catch (error) {
+		console.error('Error getting shell status:', error);
+	}
+}
+
 onMounted(async () => {
 	if (!terminalElement.value) {
 		return;
@@ -156,6 +183,7 @@ onMounted(async () => {
 		await initShell();
 		isShellReady = true;
 		fitTerminal();
+		await syncShellStatus();
 	});
 
 	void startPtyReadLoop();
@@ -174,6 +202,10 @@ onMounted(async () => {
 		fitTerminal();
 	});
 	resizeObserver.observe(terminalElement.value);
+
+	shellStatusIntervalId = setInterval(() => {
+		void syncShellStatus();
+	}, 1000);
 });
 
 watch(
@@ -204,6 +236,10 @@ onBeforeUnmount(() => {
 	terminalDataDisposable = null;
 	resizeObserver?.disconnect();
 	resizeObserver = null;
+	if (shellStatusIntervalId) {
+		clearInterval(shellStatusIntervalId);
+		shellStatusIntervalId = null;
+	}
 	window.removeEventListener('resize', onResize);
 	term.dispose();
 });

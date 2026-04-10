@@ -96,6 +96,31 @@ const showCloseButton = computed(() => {
 	return tabGroups.length > 1;
 });
 
+function getCwdLabel(tab: Tab): string {
+	const cwd = tab.runtimeCwd?.trim();
+	if (!cwd) {
+		return '';
+	}
+
+	const normalized = cwd.replace(/\/$/, '');
+	const parts = normalized.split('/').filter(Boolean);
+	return parts[parts.length - 1] || '/';
+}
+
+function getTabLabel(tab: Tab): string {
+	const runningCommand = tab.runtimeCommand?.trim();
+	if (runningCommand) {
+		return runningCommand;
+	}
+
+	const cwdLabel = getCwdLabel(tab);
+	if (cwdLabel) {
+		return cwdLabel;
+	}
+
+	return tab.name || tab.path;
+}
+
 const tabName = computed(() => {
 	const firstTab = props.tabGroup?.[0];
 	const secondTab = props.tabGroup?.[1];
@@ -105,10 +130,10 @@ const tabName = computed(() => {
 	}
 
 	if (props.tabGroup?.length === 2 && secondTab) {
-		return `${firstTab.name || firstTab.path} | ${secondTab.name || secondTab.path}`;
+		return `${getTabLabel(firstTab)} | ${getTabLabel(secondTab)}`;
 	}
 
-	return `${firstTab.name || firstTab.path}`;
+	return `${getTabLabel(firstTab)}`;
 });
 
 function tabOnClick(tabGroup: Tab[]) {

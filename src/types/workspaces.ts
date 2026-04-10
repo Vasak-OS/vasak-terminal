@@ -13,6 +13,8 @@ export type Tab = {
 	id: string;
 	name: string;
 	path: string;
+	runtimeCwd?: string;
+	runtimeCommand?: string;
 	type: 'directory' | 'file' | 'search';
 	paneWidth: number;
 	filterQuery: string;

@@ -242,6 +242,27 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 		tab.filterQuery = filterQuery;
 	}
 
+	function setTabRuntimeInfo(
+		tabId: string,
+		payload: {
+			runtimeCwd?: string;
+			runtimeCommand?: string;
+		}
+	) {
+		for (const workspace of workspaces.value) {
+			for (const group of workspace.tabGroups) {
+				const tab = group.find((item) => item.id === tabId);
+				if (!tab) {
+					continue;
+				}
+
+				tab.runtimeCwd = payload.runtimeCwd;
+				tab.runtimeCommand = payload.runtimeCommand;
+				return;
+			}
+		}
+	}
+
 	function toggleSplitView() {
 		return;
 	}
@@ -286,6 +307,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 		setTabs,
 		toggleSplitView,
 		setTabFilterQuery,
+		setTabRuntimeInfo,
 		setCurrentTabIndex,
 		setCurrentTabGroupIndex,
 	};

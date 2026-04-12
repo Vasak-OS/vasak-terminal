@@ -16,5 +16,10 @@ pub struct TerminalSession {
 
 pub struct AppState {
     pub sessions: Arc<AsyncMutex<HashMap<String, Arc<TerminalSession>>>>,
-    pub startup_command: Arc<AsyncMutex<Option<String>>>,
+    pub startup_command_state: Arc<AsyncMutex<StartupCommandState>>,
+}
+
+pub struct StartupCommandState {
+    pub command: Option<String>,
+    pub claim: Option<String>,
 }

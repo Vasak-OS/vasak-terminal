@@ -151,7 +151,9 @@ function initShell() {
 
 async function applyStartupCommandIfAny() {
 	try {
-		const startupCommand = await invoke<string | null>('async_take_startup_command');
+		const startupCommand = await invoke<string | null>('async_take_startup_command', {
+			sessionId: props.sessionId,
+		});
 		if (!startupCommand) {
 			return;
 		}
@@ -162,6 +164,7 @@ async function applyStartupCommandIfAny() {
 		});
 
 		await invoke('async_confirm_startup_command_delivered', {
+			sessionId: props.sessionId,
 			deliveredCommand: startupCommand,
 		});
 	} catch (error) {

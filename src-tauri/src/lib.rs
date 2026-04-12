@@ -6,7 +6,7 @@ use crate::commands::{
     async_get_shell_status, async_read_from_pty, async_resize_pty, async_take_startup_command,
     async_write_to_pty,
 };
-use crate::structs::AppState;
+use crate::structs::{AppState, StartupCommandState};
 use std::{
     collections::HashMap,
     env,
@@ -133,7 +133,10 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             sessions: Arc::new(AsyncMutex::new(HashMap::new())),
-            startup_command: Arc::new(AsyncMutex::new(startup_command)),
+            startup_command_state: Arc::new(AsyncMutex::new(StartupCommandState {
+                command: startup_command,
+                claim: None,
+            })),
         })
         .invoke_handler(tauri::generate_handler![
             async_write_to_pty,

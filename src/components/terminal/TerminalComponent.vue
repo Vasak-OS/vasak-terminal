@@ -151,6 +151,22 @@ function initShell() {
 	});
 }
 
+async function applyStartupCommandIfAny() {
+	try {
+		const startupCommand = await invoke<string | null>('async_take_startup_command');
+		if (!startupCommand) {
+			return;
+		}
+
+		await invoke('async_write_to_pty', {
+			sessionId: props.sessionId,
+			data: startupCommand,
+		});
+	} catch (error) {
+		console.error('Error applying startup command:', error);
+	}
+}
+
 async function syncShellStatus() {
 	if (!isShellReady) {
 		return;
@@ -182,6 +198,7 @@ onMounted(async () => {
 		fitAddon.fit();
 		await initShell();
 		isShellReady = true;
+		await applyStartupCommandIfAny();
 		fitTerminal();
 		await syncShellStatus();
 	});

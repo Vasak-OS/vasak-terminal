@@ -16,4 +16,5 @@ pub struct TerminalSession {
 
 pub struct AppState {
     pub sessions: Arc<AsyncMutex<HashMap<String, Arc<TerminalSession>>>>,
+    pub startup_command: Arc<AsyncMutex<Option<String>>>,
 }

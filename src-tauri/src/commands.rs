@@ -363,3 +363,9 @@ pub async fn async_get_shell_status(
         Ok(default_shell_status())
     }
 }
+
+#[tauri::command]
+pub async fn async_take_startup_command(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let mut startup_command = state.startup_command.lock().await;
+    Ok(startup_command.take())
+}

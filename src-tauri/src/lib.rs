@@ -2,8 +2,9 @@ mod commands;
 mod structs;
 
 use crate::commands::{
-    async_close_shell, async_create_shell, async_get_shell_status, async_read_from_pty,
-    async_resize_pty, async_take_startup_command, async_write_to_pty,
+    async_close_shell, async_confirm_startup_command_delivered, async_create_shell,
+    async_get_shell_status, async_read_from_pty, async_resize_pty, async_take_startup_command,
+    async_write_to_pty,
 };
 use crate::structs::AppState;
 use std::{
@@ -68,7 +69,8 @@ pub fn run() {
             async_read_from_pty,
             async_close_shell,
             async_get_shell_status,
-            async_take_startup_command
+            async_take_startup_command,
+            async_confirm_startup_command_delivered
         ])
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_config_manager::init())

@@ -162,6 +162,10 @@ async function applyStartupCommandIfAny() {
 			sessionId: props.sessionId,
 			data: startupCommand,
 		});
+
+		await invoke('async_confirm_startup_command_delivered', {
+			deliveredCommand: startupCommand,
+		});
 	} catch (error) {
 		console.error('Error applying startup command:', error);
 	}

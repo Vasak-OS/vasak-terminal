@@ -366,6 +366,22 @@ pub async fn async_get_shell_status(
 
 #[tauri::command]
 pub async fn async_take_startup_command(state: State<'_, AppState>) -> Result<Option<String>, String> {
+    let startup_command = state.startup_command.lock().await;
+    Ok(startup_command.clone())
+}
+
+#[tauri::command]
+pub async fn async_confirm_startup_command_delivered(
+    delivered_command: &str,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let mut startup_command = state.startup_command.lock().await;
-    Ok(startup_command.take())
+
+    if startup_command
+        .as_ref()
+        .is_some_and(|value| value == delivered_command) {
+        startup_command.take();
+    }
+
+    Ok(())
 }

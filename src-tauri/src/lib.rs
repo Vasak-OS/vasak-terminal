@@ -10,7 +10,8 @@ use crate::structs::AppState;
 use std::{
     collections::HashMap,
     env,
-    fs,
+    fs::File,
+    io::Read,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -28,8 +29,11 @@ fn is_probable_script(path: &Path) -> bool {
         }
     }
 
-    if let Ok(bytes) = fs::read(path) {
-        return bytes.starts_with(b"#!");
+    if let Ok(mut file) = File::open(path) {
+        let mut first_two_bytes = [0_u8; 2];
+        if file.read_exact(&mut first_two_bytes).is_ok() {
+            return first_two_bytes == *b"#!";
+        }
     }
 
     false

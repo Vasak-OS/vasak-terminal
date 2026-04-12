@@ -363,3 +363,49 @@ pub async fn async_get_shell_status(
         Ok(default_shell_status())
     }
 }
+
+#[tauri::command]
+pub async fn async_take_startup_command(
+    session_id: &str,
+    state: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    let mut startup_command_state = state.startup_command_state.lock().await;
+
+    let Some(command) = startup_command_state.command.clone() else {
+        return Ok(None);
+    };
+
+    match startup_command_state.claim.as_deref() {
+        None => {
+            startup_command_state.claim = Some(session_id.to_string());
+            Ok(Some(command))
+        }
+        Some(claimed_by) if claimed_by == session_id => Ok(Some(command)),
+        Some(_) => Ok(None),
+    }
+}
+
+#[tauri::command]
+pub async fn async_confirm_startup_command_delivered(
+    session_id: &str,
+    delivered_command: &str,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut startup_command_state = state.startup_command_state.lock().await;
+
+    let claim_matches = startup_command_state
+        .claim
+        .as_ref()
+        .is_some_and(|claimed_by| claimed_by == session_id);
+    let command_matches = startup_command_state
+        .command
+        .as_ref()
+        .is_some_and(|value| value == delivered_command);
+
+    if claim_matches && command_matches {
+        startup_command_state.command.take();
+        startup_command_state.claim.take();
+    }
+
+    Ok(())
+}

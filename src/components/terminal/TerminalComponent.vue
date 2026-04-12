@@ -146,9 +146,30 @@ function initShell() {
 		sessionId: props.sessionId,
 		rows: term.rows,
 		cols: term.cols,
-	}).catch((error) => {
-		console.error('Error creating shell:', error);
 	});
+}
+
+async function applyStartupCommandIfAny() {
+	try {
+		const startupCommand = await invoke<string | null>('async_take_startup_command', {
+			sessionId: props.sessionId,
+		});
+		if (!startupCommand) {
+			return;
+		}
+
+		await invoke('async_write_to_pty', {
+			sessionId: props.sessionId,
+			data: startupCommand,
+		});
+
+		await invoke('async_confirm_startup_command_delivered', {
+			sessionId: props.sessionId,
+			deliveredCommand: startupCommand,
+		});
+	} catch (error) {
+		console.error('Error applying startup command:', error);
+	}
 }
 
 async function syncShellStatus() {
@@ -180,10 +201,16 @@ onMounted(async () => {
 
 	void nextTick().then(async () => {
 		fitAddon.fit();
-		await initShell();
-		isShellReady = true;
-		fitTerminal();
-		await syncShellStatus();
+		try {
+			await initShell();
+			isShellReady = true;
+			await applyStartupCommandIfAny();
+			fitTerminal();
+			await syncShellStatus();
+		} catch (error) {
+			isShellReady = false;
+			console.error('Error creating shell:', error);
+		}
 	});
 
 	void startPtyReadLoop();

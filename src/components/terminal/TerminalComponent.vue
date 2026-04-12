@@ -146,8 +146,6 @@ function initShell() {
 		sessionId: props.sessionId,
 		rows: term.rows,
 		cols: term.cols,
-	}).catch((error) => {
-		console.error('Error creating shell:', error);
 	});
 }
 
@@ -200,11 +198,16 @@ onMounted(async () => {
 
 	void nextTick().then(async () => {
 		fitAddon.fit();
-		await initShell();
-		isShellReady = true;
-		await applyStartupCommandIfAny();
-		fitTerminal();
-		await syncShellStatus();
+		try {
+			await initShell();
+			isShellReady = true;
+			await applyStartupCommandIfAny();
+			fitTerminal();
+			await syncShellStatus();
+		} catch (error) {
+			isShellReady = false;
+			console.error('Error creating shell:', error);
+		}
 	});
 
 	void startPtyReadLoop();

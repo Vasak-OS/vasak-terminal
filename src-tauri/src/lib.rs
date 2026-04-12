@@ -7,6 +7,7 @@ use crate::commands::{
     async_write_to_pty,
 };
 use crate::structs::{AppState, StartupCommandState};
+use shell_words::split as split_shell_words;
 use std::{
     collections::HashMap,
     env,
@@ -42,7 +43,7 @@ fn is_probable_script(path: &Path) -> bool {
     false
 }
 
-fn read_shebang_interpreter(path: &Path) -> Option<String> {
+fn read_shebang_tokens(path: &Path) -> Option<Vec<String>> {
     let file = File::open(path).ok()?;
     let mut reader = BufReader::new(file);
     let mut first_line = String::new();
@@ -52,15 +53,17 @@ fn read_shebang_interpreter(path: &Path) -> Option<String> {
         return None;
     }
 
-    let interpreter = first_line
+    let shebang = first_line
         .trim_end_matches(['\n', '\r'])
         .trim_start_matches("#!")
         .trim();
 
-    if interpreter.is_empty() {
+    if shebang.is_empty() {
         None
     } else {
-        Some(interpreter.to_string())
+        split_shell_words(shebang)
+            .ok()
+            .filter(|tokens| !tokens.is_empty())
     }
 }
 
@@ -94,8 +97,13 @@ fn fallback_interpreter_from_extension(path: &Path) -> Option<&'static str> {
 fn build_script_command(path: &Path) -> Option<String> {
     let escaped_file = shell_escape_single_quoted(&path.to_string_lossy());
 
-    if let Some(interpreter) = read_shebang_interpreter(path) {
-        return Some(format!("{interpreter} {escaped_file}\n"));
+    if let Some(shebang_tokens) = read_shebang_tokens(path) {
+        let escaped_tokens = shebang_tokens
+            .iter()
+            .map(|token| shell_escape_single_quoted(token))
+            .collect::<Vec<_>>()
+            .join(" ");
+        return Some(format!("{escaped_tokens} {escaped_file}\n"));
     }
 
     if is_executable(path) {

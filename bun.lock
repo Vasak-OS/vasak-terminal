@@ -5,7 +5,7 @@
     "": {
       "name": "vasak-terminal",
       "dependencies": {
-        "@tailwindcss/vite": "^4.2.1",
+        "@tailwindcss/vite": "^4.2.2",
         "@tauri-apps/api": "^2.10.1",
         "@tauri-apps/plugin-shell": "^2.3.5",
         "@tauri-apps/plugin-store": "^2.4.2",
@@ -16,23 +16,23 @@
         "path": "^0.12.7",
         "pinia": "^3.0.4",
         "url": "^0.11.4",
-        "vue": "^3.5.30",
+        "vue": "^3.5.32",
         "vue3-smooth-dnd": "^0.0.6",
         "xterm": "^5.3.0",
         "xterm-addon-fit": "^0.8.0",
       },
       "devDependencies": {
-        "@biomejs/biome": "^2.4.7",
-        "@tailwindcss/postcss": "^4.2.1",
+        "@biomejs/biome": "^2.4.11",
+        "@tailwindcss/postcss": "^4.2.2",
         "@tauri-apps/cli": "^2.10.1",
         "@types/lodash.clonedeep": "^4.5.9",
-        "@types/node": "^25.5.0",
+        "@types/node": "^25.6.0",
         "@vitejs/plugin-vue": "^6.0.5",
-        "postcss": "^8.5.8",
-        "tailwindcss": "^4.2.1",
+        "postcss": "^8.5.9",
+        "tailwindcss": "^4.2.2",
         "typescript": "^5.9.3",
-        "vite": "^7.3.1",
-        "vue-tsc": "^3.2.5",
+        "vite": "^7.3.2",
+        "vue-tsc": "^3.2.6",
       },
     },
   },
@@ -127,7 +127,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.30", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-GQ7Nw5G2lTu/BtHTKfXhKHok2WGetd4XYcVKGx00SjAk8GMwgJM3zr6zORiPGuOE+/vkc90KtTosSSvaCjKb2Q=="],
 
-    "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.0-rc.2", "", {}, "sha512-izyXV/v+cHiRfozX62W9htOAvwMo4/bXKDrQ+vom1L1qRuexPock/7VZDAhnpHCLNejd3NJ6hiab+tO0D44Rgw=="],
+    "@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.0-rc.13", "", {}, "sha512-3ngTAv6F/Py35BsYbeeLeecvhMKdsKm4AoOETVhAA+Qc8nrA2I0kF7oa93mE9qnIurngOSpMnQ0x2nQY2FPviA=="],
 
     "@rollup/rollup-android-arm-eabi": ["@rollup/rollup-android-arm-eabi@4.49.0", "", { "os": "android", "cpu": "arm" }, "sha512-rlKIeL854Ed0e09QGYFlmDNbka6I3EQFw7iZuugQjMb11KMpJCLPFL4ZPbMfaEhLADEL1yx0oujGkBQ7+qW3eA=="],
 
@@ -245,7 +245,7 @@
 
     "@vasakgroup/tauri-plugin-i18n": ["@vasakgroup/tauri-plugin-i18n@2.1.0", "", { "dependencies": { "@tauri-apps/api": "^2.10.1" }, "peerDependencies": { "vue": "^3.0.0" }, "optionalPeers": ["vue"] }, "sha512-zeM7pJc5b4BERCvkbrBQhvmqxLmlzqmIAkCIdJNIioS5uZwbvZsGDcgC6XqFn22TvNsj0zceTf55PM2byEUNsg=="],
 
-    "@vitejs/plugin-vue": ["@vitejs/plugin-vue@6.0.5", "", { "dependencies": { "@rolldown/pluginutils": "1.0.0-rc.2" }, "peerDependencies": { "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0", "vue": "^3.2.25" } }, "sha512-bL3AxKuQySfk1iGcBsQnoRVexTPJq0Z/ixFVM8OhVJAP6ZXXXLtM7NFKWhLl30Kg7uTBqIaPXbh+nuQCuBDedg=="],
+    "@vitejs/plugin-vue": ["@vitejs/plugin-vue@6.0.6", "", { "dependencies": { "@rolldown/pluginutils": "1.0.0-rc.13" }, "peerDependencies": { "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0", "vue": "^3.2.25" } }, "sha512-u9HHgfrq3AjXlysn0eINFnWQOJQLO9WN6VprZ8FXl7A2bYisv3Hui9Ij+7QZ41F/WYWarHjwBbXtD7dKg3uxbg=="],
 
     "@volar/language-core": ["@volar/language-core@2.4.28", "", { "dependencies": { "@volar/source-map": "2.4.28" } }, "sha512-w4qhIJ8ZSitgLAkVay6AbcnC7gP3glYM3fYwKV3srj8m494E3xtrCv6E+bWviiK/8hs6e6t1ij1s2Endql7vzQ=="],
 

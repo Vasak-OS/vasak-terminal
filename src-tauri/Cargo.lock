@@ -3502,9 +3502,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-config-manager"
-version = "2.2.3"
+version = "2.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d52d886d07041f3a2e128c427bd42d3e6eb0c14cad645a90dca3af0a97bccc17"
+checksum = "d9894615de4ba410c2d42b97b9133b10c248f934d792bd48431e4995742fe49e"
 dependencies = [
  "dirs-next",
  "notify",

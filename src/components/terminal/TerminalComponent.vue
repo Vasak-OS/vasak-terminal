@@ -27,7 +27,7 @@ const terminalElement = ref<HTMLElement | null>(null);
 const fitAddon = new FitAddon();
 const term = new Terminal({
 	allowTransparency: true,
-	fontFamily: 'MesloLGL Nerd Font Mono',
+	fontFamily: 'monospace',
 	theme: {
 		background: 'rgba(0, 0, 0, 0)',
 	},
@@ -96,6 +96,11 @@ async function startPtyReadLoop() {
 const setTerminalConfig = async () => {
 	const conf = configStore.config as VSKConfig | null;
 	if (!conf) return;
+
+	// Apply font from config
+	if (conf.fonts?.terminal) {
+		term.options.fontFamily = conf.fonts.terminal;
+	}
 
 	const scheme = await getSchemeById(conf.style['color-scheme']);
 	if (!scheme) return;
@@ -238,7 +243,10 @@ onMounted(async () => {
 watch(
 	() => {
 		const conf = configStore.config as VSKConfig | null;
-		return conf?.style ?? null;
+		return {
+			style: conf?.style ?? null,
+			fonts: conf?.fonts ?? null,
+		};
 	},
 	() => {
 		void setTerminalConfig();

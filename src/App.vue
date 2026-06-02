@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useConfigStore } from '@vasakgroup/plugin-config-manager';
-import type { Store } from 'pinia';
-import { onMounted, onUnmounted, type Ref, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import WindowAppLayout from '@/layouts/WindowAppLayout.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 
-let unListenConfig: Ref<UnlistenFn | null> = ref(null);
+const unListenConfig = ref<UnlistenFn | null>(null);
 const workspacesStore = useWorkspacesStore();
 
 onMounted(async () => {

@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { inject, onMounted, ref } from 'vue';
 
-interface Props {
-	asChild?: boolean;
-}
-
-withDefaults(defineProps<Props>(), {
-	asChild: false,
-});
-
 const tooltip = inject<any>('tooltip');
 const triggerRef = ref<HTMLElement | null>(null);
 
@@ -46,7 +38,7 @@ onMounted(() => {
 <template>
 	<div
 		ref="triggerRef"
-		class="inline-block "
+		class="inline-block"
 		@mouseenter="handleMouseEnter"
 		@mouseleave="handleMouseLeave"
 		@focus="handleFocus"

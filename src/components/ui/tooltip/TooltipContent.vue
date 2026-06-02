@@ -5,14 +5,12 @@ interface Props {
 	side?: 'top' | 'bottom' | 'left' | 'right';
 	align?: 'start' | 'center' | 'end';
 	sideOffset?: number;
-	delayDuration?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	side: 'bottom',
 	align: 'center',
 	sideOffset: 4,
-	delayDuration: 200,
 });
 
 const tooltip = inject<any>('tooltip');

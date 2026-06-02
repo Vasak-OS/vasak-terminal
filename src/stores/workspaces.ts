@@ -12,7 +12,6 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 			isPrimary: true,
 			isCurrent: true,
 			name: 'primary',
-			actions: [],
 			tabGroups: [],
 			currentTabGroupIndex: 0,
 			currentTabIndex: 0,
@@ -234,10 +233,6 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 		ensureAtLeastOneTabGroup();
 	}
 
-	async function preloadDefaultTab() {
-		ensureAtLeastOneTabGroup();
-	}
-
 	function setTabFilterQuery(tab: Tab, filterQuery: string) {
 		tab.filterQuery = filterQuery;
 	}
@@ -263,10 +258,6 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 		}
 	}
 
-	function toggleSplitView() {
-		return;
-	}
-
 	function setCurrentTabIndex(newTabIndex: number) {
 		const workspace = currentWorkspace.value;
 
@@ -284,10 +275,6 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 		workspace.currentTabIndex = index;
 	}
 
-	async function getDirEntry() {
-		return null;
-	}
-
 	return {
 		workspaces,
 		primaryWorkspace,
@@ -298,14 +285,11 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 		init,
 		addNewTabGroup,
 		openNewTabGroup,
-		preloadDefaultTab,
-		getDirEntry,
 		openTabGroup,
 		closeTabGroup,
 		closeAllTabGroups,
 		closeOtherTabGroups,
 		setTabs,
-		toggleSplitView,
 		setTabFilterQuery,
 		setTabRuntimeInfo,
 		setCurrentTabIndex,

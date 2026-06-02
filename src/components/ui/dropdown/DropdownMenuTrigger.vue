@@ -2,12 +2,10 @@
 import { inject, onMounted, ref } from 'vue';
 
 interface Props {
-	asChild?: boolean;
 	disabled?: boolean;
 }
 
-withDefaults(defineProps<Props>(), {
-	asChild: false,
+const props = withDefaults(defineProps<Props>(), {
 	disabled: false,
 });
 
@@ -21,6 +19,7 @@ const resolveTriggerElement = () => {
 };
 
 const handleClick = (event: MouseEvent) => {
+	if (props.disabled) return;
 	const element = (event.currentTarget as HTMLElement) ?? resolveTriggerElement();
 	dropdown?.setTriggerElement?.(element);
 	dropdown?.toggleDropdown();

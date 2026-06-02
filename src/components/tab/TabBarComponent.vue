@@ -12,11 +12,9 @@ import type { TabGroup, Tab as TabType } from '@/types/workspaces';
 const props = withDefaults(
 	defineProps<{
 		teleportTarget?: string;
-		compact?: boolean;
 	}>(),
 	{
 		teleportTarget: '.window-toolbar-primary-teleport-target',
-		compact: false,
 	}
 );
 
@@ -47,7 +45,6 @@ function handleWheel(event: WheelEvent) {
 	const container = scrollContainerRef.value;
 	if (!container) return;
 	container.scrollLeft += event.deltaY || event.deltaX || 0;
-	handleScrollActivity();
 }
 
 function onScroll() {

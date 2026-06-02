@@ -3,7 +3,6 @@ export type Workspace = {
 	isPrimary: boolean;
 	isCurrent: boolean;
 	name: string;
-	actions: TabAction[];
 	tabGroups: TabGroup[];
 	currentTabGroupIndex: number;
 	currentTabIndex: number;
@@ -21,8 +20,3 @@ export type Tab = {
 };
 
 export type TabGroup = Tab[];
-
-export type TabAction = {
-	name: string;
-	path: string;
-};

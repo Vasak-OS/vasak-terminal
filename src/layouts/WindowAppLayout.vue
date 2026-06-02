@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import { getIconSource } from '@vasakgroup/plugin-vicons';
-import { computed, onMounted, ref } from 'vue';
+import { computed } from 'vue';
 import TabBarComponent from '@/components/tab/TabBarComponent.vue';
 import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
 import TopBarComponent from '@/components/topbar/TopBarComponent.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
+import { useReactiveIcon } from '@/utils/useReactiveIcon';
 import type { Tab } from '@/types/workspaces';
 
 const workspacesStore = useWorkspacesStore();
@@ -14,11 +14,7 @@ const terminalTabs = computed<Tab[]>(() =>
 		.map((tabGroup) => tabGroup?.[0])
 		.filter((tab): tab is Tab => Boolean(tab))
 );
-const terminalIcon = ref('');
-
-onMounted(async () => {
-	terminalIcon.value = await getIconSource('terminal');
-});
+const { terminalIcon } = useReactiveIcon({ terminalIcon: { name: 'terminal', type: 'icon' } });
 </script>
 <template>
   <div

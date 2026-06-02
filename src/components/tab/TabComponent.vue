@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { getSymbolSource } from '@vasakgroup/plugin-vicons';
 import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import DropdownMenu from '@/components/ui/dropdown/DropdownMenu.vue';
 import DropdownMenuContent from '@/components/ui/dropdown/DropdownMenuContent.vue';
 import DropdownMenuItem from '@/components/ui/dropdown/DropdownMenuItem.vue';
@@ -10,6 +9,7 @@ import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
 import TooltipContent from '@/components/ui/tooltip/TooltipContent.vue';
 import TooltipTrigger from '@/components/ui/tooltip/TooltipTrigger.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
+import { useReactiveIcon } from '@/utils/useReactiveIcon';
 import type { Tab } from '@/types/workspaces';
 import { useEventListener } from '@/utils/event-listener';
 import { useTimeoutFn } from '@/utils/timeout';
@@ -28,7 +28,7 @@ const emit = defineEmits<Emits>();
 const { t } = useI18n();
 
 const workspacesStore = useWorkspacesStore();
-const xIcon = ref('');
+const { xIcon } = useReactiveIcon({ xIcon: 'gtk-close' });
 const showTabPreview = true;
 const LONG_PRESS_DELAY = 500;
 const LONG_PRESS_MOVE_THRESHOLD = 10;
@@ -165,9 +165,6 @@ async function closeAllTabs() {
 	await workspacesStore.closeAllTabGroups();
 }
 
-onMounted(async () => {
-	xIcon.value = await getSymbolSource('gtk-close');
-});
 </script>
 
 <template>

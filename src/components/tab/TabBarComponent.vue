@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { getSymbolSource } from '@vasakgroup/plugin-vicons';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import TabComponent from '@/components/tab/TabComponent.vue';
 import TabDraggableComponent from '@/components/tab/TabDraggableComponent.vue';
 import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
 import TooltipContent from '@/components/ui/tooltip/TooltipContent.vue';
 import TooltipTrigger from '@/components/ui/tooltip/TooltipTrigger.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
+import { useReactiveIcon } from '@/utils/useReactiveIcon';
 import type { TabGroup, Tab as TabType } from '@/types/workspaces';
 
 const props = withDefaults(
@@ -26,9 +26,9 @@ const teleportDisabled = computed(() => !props.teleportTarget);
 const teleportTo = computed(() => props.teleportTarget || 'body');
 const { openNewTabGroup, closeTabGroup, setTabs } = workspacesStore;
 
+const { plusIcon } = useReactiveIcon({ plusIcon: 'gtk-add' });
 const previewEnabled = ref(true);
 const scrollContainerRef = ref<HTMLElement | null>(null);
-const plusIcon = ref('');
 let scrollDisableTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 function handleScrollActivity() {
@@ -53,10 +53,6 @@ function handleWheel(event: WheelEvent) {
 function onScroll() {
 	handleScrollActivity();
 }
-
-onMounted(async () => {
-	plusIcon.value = await getSymbolSource('gtk-add');
-});
 
 onBeforeUnmount(() => {
 	if (scrollDisableTimeoutId !== null) {

@@ -3,9 +3,10 @@ import { computed } from 'vue';
 import TabBarComponent from '@/components/tab/TabBarComponent.vue';
 import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
 import TopBarComponent from '@/components/topbar/TopBarComponent.vue';
+import NotificationToast from '@/components/ui/notification/NotificationToast.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
-import { useReactiveIcon } from '@/utils/useReactiveIcon';
 import type { Tab } from '@/types/workspaces';
+import { useReactiveIcon } from '@/utils/useReactiveIcon';
 
 const workspacesStore = useWorkspacesStore();
 const currentSessionId = computed(() => workspacesStore.currentTab?.id ?? '');
@@ -32,5 +33,6 @@ const { terminalIcon } = useReactiveIcon({ terminalIcon: { name: 'terminal', typ
         :active="tab.id === currentSessionId"
       />
     </div>
+    <NotificationToast />
   </div>
 </template>

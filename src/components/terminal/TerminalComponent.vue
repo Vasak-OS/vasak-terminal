@@ -6,6 +6,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { useWorkspacesStore } from '@/stores/workspaces';
+import { useNotification } from '@/utils/useNotification';
 
 const props = withDefaults(
 	defineProps<{
@@ -22,6 +23,7 @@ const configStore = useConfigStore() as Store<
 	{ config: VSKConfig; loadConfig: () => Promise<void> }
 >;
 const workspacesStore = useWorkspacesStore();
+const { notify } = useNotification();
 const terminalElement = ref<HTMLElement | null>(null);
 
 const fitAddon = new FitAddon();
@@ -36,6 +38,7 @@ const term = new Terminal({
 let terminalDataDisposable: (() => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let isPtyReadLoopActive = false;
+let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 let isShellReady = false;
 let shellStatusIntervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -212,13 +215,12 @@ onMounted(async () => {
 			await applyStartupCommandIfAny();
 			fitTerminal();
 			await syncShellStatus();
+			startPtyReadLoop();
 		} catch (error) {
 			isShellReady = false;
 			console.error('Error creating shell:', error);
 		}
 	});
-
-	void startPtyReadLoop();
 
 	// Listen for terminal input and write it to the pty
 	const onDataDisposable = term.onData((data) => {
@@ -238,6 +240,46 @@ onMounted(async () => {
 	shellStatusIntervalId = setInterval(() => {
 		void syncShellStatus();
 	}, 1000);
+
+	function copyToClipboard(text: string) {
+		try {
+			navigator.clipboard.writeText(text);
+		} catch {
+			const textarea = document.createElement('textarea');
+			textarea.value = text;
+			textarea.style.position = 'fixed';
+			textarea.style.opacity = '0';
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textarea);
+		}
+	}
+
+	keydownHandler = (e: KeyboardEvent) => {
+		if (e.ctrlKey && e.shiftKey && (e.code === 'KeyC' || e.key === 'C')) {
+			e.preventDefault();
+			e.stopPropagation();
+			const selection = term.getSelection();
+			if (selection) {
+				copyToClipboard(selection);
+				notify('Copied to clipboard');
+			}
+			return;
+		}
+
+		if (e.ctrlKey && e.shiftKey && (e.code === 'KeyV' || e.key === 'V')) {
+			e.preventDefault();
+			e.stopPropagation();
+			navigator.clipboard.readText().then((text) => {
+				if (text) {
+					writeToPty(text);
+				}
+			});
+		}
+	};
+
+	terminalElement.value.addEventListener('keydown', keydownHandler, { capture: true });
 });
 
 watch(
@@ -274,6 +316,10 @@ onBeforeUnmount(() => {
 	if (shellStatusIntervalId) {
 		clearInterval(shellStatusIntervalId);
 		shellStatusIntervalId = null;
+	}
+	if (keydownHandler) {
+		terminalElement.value?.removeEventListener('keydown', keydownHandler, { capture: true });
+		keydownHandler = null;
 	}
 	window.removeEventListener('resize', onResize);
 	term.dispose();

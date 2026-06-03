@@ -119,7 +119,7 @@ onBeforeUnmount(() => {
 			<div
 				v-show="isOpen"
 				ref="contentRef"
-				:class="[$attrs.class]"
+				:class="[props.class]"
 				:style="{ position: 'fixed', top: `${position.top}px`, left: `${position.left}px`, zIndex: 50 }"
 				dropdown-content
 				class="min-w-30 rounded-corner border border-primary bg-ui-bg/80 shadow-lg"

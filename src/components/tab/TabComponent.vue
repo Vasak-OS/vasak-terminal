@@ -9,10 +9,10 @@ import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
 import TooltipContent from '@/components/ui/tooltip/TooltipContent.vue';
 import TooltipTrigger from '@/components/ui/tooltip/TooltipTrigger.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
-import { useReactiveIcon } from '@/utils/useReactiveIcon';
 import type { Tab } from '@/types/workspaces';
 import { useEventListener } from '@/utils/event-listener';
 import { useTimeoutFn } from '@/utils/timeout';
+import { useReactiveIcon } from '@/utils/useReactiveIcon';
 
 interface Props {
 	tabGroup: Tab[];
@@ -164,7 +164,6 @@ async function closeOtherTabs() {
 async function closeAllTabs() {
 	await workspacesStore.closeAllTabGroups();
 }
-
 </script>
 
 <template>
@@ -173,7 +172,7 @@ async function closeAllTabs() {
       :key="props.previewEnabled && showTabPreview ? 'enabled' : 'disabled'">
       <TooltipTrigger as-child>
         <DropdownMenuTrigger as-child :disabled="true">
-          <div v-if="props.tabGroup?.length" v-wave class="relative flex w-34 max-w-34 rounded-corner p-1 px-3 pr-3 items-center border border-ui-border" :class="{ 'bg-primary text-tx-on-primary font-bold': isActive, 'bg-ui-bg/80': !isActive }"
+          <div v-if="props.tabGroup?.length" class="relative flex w-34 max-w-34 rounded-corner p-1 px-3 pr-3 items-center border border-ui-border" :class="{ 'bg-primary text-tx-on-primary font-bold': isActive, 'bg-ui-bg/80': !isActive }"
             @click.stop="tabOnClick(props.tabGroup)" @auxclick.stop="handleAuxClick"
             @contextmenu="handleContextMenu" @pointerdown="handlePointerDown">
             <div class="w-full overflow-hidden">

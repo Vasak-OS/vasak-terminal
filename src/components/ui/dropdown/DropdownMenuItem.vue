@@ -31,7 +31,7 @@ const handleClick = () => {
 				'opacity-50 cursor-not-allowed': disabled,
 				'cursor-pointer hover:bg-primary hover:text-tx-on-primary': !disabled,
 			},
-			$attrs.class,
+			props.class,
 		]"
 		@click="handleClick"
 	>

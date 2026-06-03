@@ -4,9 +4,9 @@ import { useReactiveIcon } from '@/utils/useReactiveIcon';
 
 const appWindow = getCurrentWindow();
 const { closeIcon, minimizeIcon, maximizeIcon } = useReactiveIcon({
-  closeIcon: 'window-close',
-  minimizeIcon: 'window-minimize',
-  maximizeIcon: 'window-maximize',
+	closeIcon: 'window-close',
+	minimizeIcon: 'window-minimize',
+	maximizeIcon: 'window-maximize',
 });
 </script>
 <template>

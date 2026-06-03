@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, watch } from 'vue';
+import { computed, inject, nextTick, ref, useAttrs, watch } from 'vue';
+
+defineOptions({ inheritAttrs: false });
+void useAttrs();
 
 interface Props {
 	side?: 'top' | 'bottom' | 'left' | 'right';

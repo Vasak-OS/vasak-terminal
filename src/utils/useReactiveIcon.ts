@@ -1,11 +1,11 @@
-import { getIconSource, getSymbolSource } from '@vasakgroup/plugin-vicons';
 import { listen } from '@tauri-apps/api/event';
-import { onUnmounted, ref, type Ref } from 'vue';
+import { getIconSource, getSymbolSource } from '@vasakgroup/plugin-vicons';
+import { onUnmounted, type Ref, ref } from 'vue';
 
 type IconConfig = string | { name: string; type?: 'icon' | 'symbol' };
 
 export function useReactiveIcon<T extends Record<string, IconConfig>>(
-	icons: T,
+	icons: T
 ): { [K in keyof T]: Ref<string> } {
 	const result = {} as { [K in keyof T]: Ref<string> };
 	const entries = Object.entries(icons);

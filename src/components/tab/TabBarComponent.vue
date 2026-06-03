@@ -6,8 +6,8 @@ import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
 import TooltipContent from '@/components/ui/tooltip/TooltipContent.vue';
 import TooltipTrigger from '@/components/ui/tooltip/TooltipTrigger.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
-import { useReactiveIcon } from '@/utils/useReactiveIcon';
 import type { TabGroup, Tab as TabType } from '@/types/workspaces';
+import { useReactiveIcon } from '@/utils/useReactiveIcon';
 
 const props = withDefaults(
 	defineProps<{

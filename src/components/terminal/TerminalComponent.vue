@@ -40,6 +40,7 @@ let resizeObserver: ResizeObserver | null = null;
 let isPtyReadLoopActive = false;
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 let isShellReady = false;
+let shellExited = false;
 let shellStatusIntervalId: ReturnType<typeof setInterval> | null = null;
 
 type ShellStatus = {
@@ -79,7 +80,7 @@ function sleep(ms: number) {
 async function startPtyReadLoop() {
 	isPtyReadLoopActive = true;
 
-	while (isPtyReadLoopActive) {
+	while (isPtyReadLoopActive && !shellExited) {
 		try {
 			const data = await invoke<string | null>('async_read_from_pty', {
 				sessionId: props.sessionId,
@@ -90,7 +91,10 @@ async function startPtyReadLoop() {
 				await sleep(16);
 			}
 		} catch (error) {
-			console.error('Error reading from pty:', error);
+			if (!shellExited) {
+				shellExited = true;
+				await workspacesStore.handleShellExit(props.sessionId);
+			}
 			await sleep(100);
 		}
 	}
@@ -181,7 +185,7 @@ async function applyStartupCommandIfAny() {
 }
 
 async function syncShellStatus() {
-	if (!isShellReady) {
+	if (!isShellReady || shellExited) {
 		return;
 	}
 
@@ -195,7 +199,8 @@ async function syncShellStatus() {
 			runtimeCommand: status.running_command || undefined,
 		});
 	} catch (error) {
-		console.error('Error getting shell status:', error);
+		shellExited = true;
+		await workspacesStore.handleShellExit(props.sessionId);
 	}
 }
 

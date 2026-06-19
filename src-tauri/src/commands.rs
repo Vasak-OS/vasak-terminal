@@ -289,6 +289,10 @@ pub async fn async_write_to_pty(session_id: &str, data: &str, state: State<'_, A
     writer.flush().map_err(|err| err.to_string())
 }
 
+fn is_process_alive(pid: u32) -> bool {
+    Path::new(&format!("/proc/{pid}")).exists()
+}
+
 #[tauri::command]
 pub async fn async_read_from_pty(session_id: &str, state: State<'_, AppState>) -> Result<Option<String>, String> {
     let session = get_session(&state, session_id).await?;
@@ -307,6 +311,15 @@ pub async fn async_read_from_pty(session_id: &str, state: State<'_, AppState>) -
 
     if let Some(data) = &data {
         reader.consume(data.len());
+    }
+
+    if data.is_none() {
+        let shell_pid = *session.shell_pid.lock().await;
+        if let Some(pid) = shell_pid {
+            if !is_process_alive(pid) {
+                return Err("Shell process has exited".to_string());
+            }
+        }
     }
 
     Ok(data)
@@ -352,6 +365,10 @@ pub async fn async_get_shell_status(
     let Some(shell_pid) = shell_pid else {
         return Ok(default_shell_status());
     };
+
+    if !is_process_alive(shell_pid) {
+        return Err("Shell process has exited".to_string());
+    }
 
     #[cfg(target_os = "linux")]
     {

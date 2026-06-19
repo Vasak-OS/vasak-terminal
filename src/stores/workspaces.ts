@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { defineStore } from 'pinia';
 import type { ComputedRef } from 'vue';
 import { computed, ref } from 'vue';
@@ -80,6 +81,31 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 			workspace.currentTabGroupIndex = 0;
 			workspace.currentTabIndex = 0;
 		}
+	}
+
+	async function handleShellExit(sessionId: string) {
+		const workspace = currentWorkspace.value;
+		if (!workspace) return;
+
+		const groupIndex = workspace.tabGroups.findIndex((group) =>
+			group.some((tab) => tab.id === sessionId)
+		);
+		if (groupIndex === -1) return;
+
+		const [removedGroup] = workspace.tabGroups.splice(groupIndex, 1);
+		if (removedGroup?.length) {
+			await closeTabGroupSessions(removedGroup);
+		}
+
+		if (workspace.tabGroups.length === 0) {
+			await getCurrentWindow().close();
+			return;
+		}
+
+		if (workspace.currentTabGroupIndex >= workspace.tabGroups.length) {
+			workspace.currentTabGroupIndex = workspace.tabGroups.length - 1;
+		}
+		workspace.currentTabIndex = 0;
 	}
 
 	async function closeSessionByTabId(tabId: string) {
@@ -289,6 +315,7 @@ export const useWorkspacesStore = defineStore('workspaces', () => {
 		closeTabGroup,
 		closeAllTabGroups,
 		closeOtherTabGroups,
+		handleShellExit,
 		setTabs,
 		setTabFilterQuery,
 		setTabRuntimeInfo,

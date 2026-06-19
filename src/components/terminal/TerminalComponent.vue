@@ -205,6 +205,7 @@ onMounted(async () => {
 	}
 
 	term.loadAddon(fitAddon);
+	await setTerminalConfig();
 	term.open(terminalElement.value);
 	term.focus();
 
@@ -284,6 +285,11 @@ onMounted(async () => {
 	terminalElement.value.addEventListener('keydown', keydownHandler, { capture: true });
 });
 
+async function applyTerminalConfig() {
+	await setTerminalConfig();
+	fitTerminal();
+}
+
 watch(
 	() => {
 		const conf = configStore.config as VSKConfig | null;
@@ -293,7 +299,7 @@ watch(
 		};
 	},
 	() => {
-		void setTerminalConfig();
+		void applyTerminalConfig();
 	},
 	{ deep: true, immediate: true }
 );

@@ -206,6 +206,7 @@ onMounted(async () => {
 
 	term.loadAddon(fitAddon);
 	term.open(terminalElement.value);
+	term.focus();
 
 	void nextTick().then(async () => {
 		fitAddon.fit();
@@ -216,6 +217,7 @@ onMounted(async () => {
 			fitTerminal();
 			await syncShellStatus();
 			startPtyReadLoop();
+			term.focus();
 		} catch (error) {
 			isShellReady = false;
 			console.error('Error creating shell:', error);
@@ -302,6 +304,7 @@ watch(
 		if (isActive) {
 			void nextTick().then(() => {
 				fitTerminal();
+				term.focus();
 			});
 		}
 	}

@@ -16,6 +16,12 @@
     "vicons:default",
     "config-manager:default",
     "i18n:default",
-    "i18n:allow-load-translations"
+    "i18n:allow-load-translations",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:event:allow-listen"
   ]
 }

@@ -426,3 +426,36 @@ pub async fn async_confirm_startup_command_delivered(
 
     Ok(())
 }
+
+use std::cell::RefCell;
+
+use gtk::prelude::WidgetExt;
+
+thread_local! {
+    pub static OVERLAY_WIN: RefCell<Option<gtk::Window>> = const { RefCell::new(None) };
+}
+
+#[tauri::command]
+pub fn is_overlay_mode(state: tauri::State<'_, AppState>) -> bool {
+    state.is_overlay
+}
+
+#[tauri::command]
+pub fn show_overlay() -> Result<(), String> {
+    OVERLAY_WIN.with(|win| {
+        win.borrow()
+            .as_ref()
+            .ok_or_else(|| "Overlay window not initialized".to_string())
+            .map(|w| w.show_all())
+    })
+}
+
+#[tauri::command]
+pub fn hide_overlay() -> Result<(), String> {
+    OVERLAY_WIN.with(|win| {
+        win.borrow()
+            .as_ref()
+            .ok_or_else(|| "Overlay window not initialized".to_string())
+            .map(|w| w.hide())
+    })
+}

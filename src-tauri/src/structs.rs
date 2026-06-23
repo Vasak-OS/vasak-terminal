@@ -17,6 +17,7 @@ pub struct TerminalSession {
 pub struct AppState {
     pub sessions: Arc<AsyncMutex<HashMap<String, Arc<TerminalSession>>>>,
     pub startup_command_state: Arc<AsyncMutex<StartupCommandState>>,
+    pub is_overlay: bool,
 }
 
 pub struct StartupCommandState {

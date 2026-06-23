@@ -2,5 +2,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    vasak_terminal_lib::run()
+    let is_overlay = std::env::args().any(|a| a == "--overlay");
+    vasak_terminal_lib::run(is_overlay)
 }

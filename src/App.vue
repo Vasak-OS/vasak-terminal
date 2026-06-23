@@ -1,15 +1,20 @@
 <script setup lang="ts">
+import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useConfigStore } from '@vasakgroup/plugin-config-manager';
 import { onMounted, onUnmounted, ref } from 'vue';
 import WindowAppLayout from '@/layouts/WindowAppLayout.vue';
+import OverlayLayout from '@/components/overlay/OverlayLayout.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 
+const isOverlay = ref(false);
 const unListenConfig = ref<UnlistenFn | null>(null);
 const workspacesStore = useWorkspacesStore();
 
 onMounted(async () => {
 	try {
+		isOverlay.value = await invoke<boolean>('is_overlay_mode');
+
 		await workspacesStore.init();
 
 		const configStore = useConfigStore() as Store<
@@ -36,5 +41,6 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <WindowAppLayout />
+  <WindowAppLayout v-if="!isOverlay" />
+  <OverlayLayout v-else />
 </template>

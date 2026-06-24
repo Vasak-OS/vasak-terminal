@@ -39,6 +39,7 @@ let terminalDataDisposable: (() => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let isPtyReadLoopActive = false;
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
+let pasteHandler: ((e: ClipboardEvent) => void) | null = null;
 let isShellReady = false;
 let shellExited = false;
 let shellStatusIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -273,21 +274,20 @@ onMounted(async () => {
 				copyToClipboard(selection);
 				notify('Copied to clipboard');
 			}
-			return;
-		}
-
-		if (e.ctrlKey && e.shiftKey && (e.code === 'KeyV' || e.key === 'V')) {
-			e.preventDefault();
-			e.stopPropagation();
-			navigator.clipboard.readText().then((text) => {
-				if (text) {
-					writeToPty(text);
-				}
-			});
 		}
 	};
 
 	terminalElement.value.addEventListener('keydown', keydownHandler, { capture: true });
+
+	pasteHandler = (e: ClipboardEvent) => {
+		const text = e.clipboardData?.getData('text/plain');
+		if (text) {
+			e.preventDefault();
+			e.stopPropagation();
+			writeToPty(text);
+		}
+	};
+	terminalElement.value.addEventListener('paste', pasteHandler);
 });
 
 async function applyTerminalConfig() {
@@ -334,6 +334,10 @@ onBeforeUnmount(() => {
 	if (keydownHandler) {
 		terminalElement.value?.removeEventListener('keydown', keydownHandler, { capture: true });
 		keydownHandler = null;
+	}
+	if (pasteHandler) {
+		terminalElement.value?.removeEventListener('paste', pasteHandler);
+		pasteHandler = null;
 	}
 	window.removeEventListener('resize', onResize);
 	term.dispose();

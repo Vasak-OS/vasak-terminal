@@ -26,10 +26,29 @@ const workspacesStore = useWorkspacesStore();
 const { notify } = useNotification();
 const terminalElement = ref<HTMLElement | null>(null);
 
+const DEFAULT_FONT_SIZE = 14;
+
+function getSavedFontSize(): number {
+	try {
+		return parseInt(localStorage.getItem('vterminal-font-size') || '') || DEFAULT_FONT_SIZE;
+	} catch {
+		return DEFAULT_FONT_SIZE;
+	}
+}
+
+function saveFontSize(size: number) {
+	try {
+		localStorage.setItem('vterminal-font-size', String(size));
+	} catch {
+		/* noop */
+	}
+}
+
 const fitAddon = new FitAddon();
 const term = new Terminal({
 	allowTransparency: true,
 	fontFamily: 'monospace',
+	fontSize: getSavedFontSize(),
 	theme: {
 		background: 'rgba(0, 0, 0, 0)',
 	},
@@ -266,6 +285,42 @@ onMounted(async () => {
 	}
 
 	keydownHandler = (e: KeyboardEvent) => {
+		// Zoom in: Ctrl++ (Ctrl+Shift+=) or Ctrl+NumpadAdd
+		if (
+			e.ctrlKey &&
+			((e.code === 'Equal' && e.shiftKey) || e.code === 'NumpadAdd')
+		) {
+			e.preventDefault();
+			e.stopPropagation();
+			const cur = (term.options.fontSize as number) || DEFAULT_FONT_SIZE;
+			term.options.fontSize = Math.min(40, cur + 1);
+			saveFontSize(term.options.fontSize as number);
+			fitTerminal();
+			return;
+		}
+
+		// Zoom out: Ctrl+- or Ctrl+NumpadSubtract
+		if (e.ctrlKey && (e.code === 'Minus' || e.code === 'NumpadSubtract')) {
+			e.preventDefault();
+			e.stopPropagation();
+			const cur = (term.options.fontSize as number) || DEFAULT_FONT_SIZE;
+			term.options.fontSize = Math.max(8, cur - 1);
+			saveFontSize(term.options.fontSize as number);
+			fitTerminal();
+			return;
+		}
+
+		// Reset zoom: Ctrl+0
+		if (e.ctrlKey && (e.code === 'Digit0' || e.code === 'Numpad0')) {
+			e.preventDefault();
+			e.stopPropagation();
+			term.options.fontSize = DEFAULT_FONT_SIZE;
+			saveFontSize(DEFAULT_FONT_SIZE);
+			fitTerminal();
+			return;
+		}
+
+		// Copy: Ctrl+Shift+C
 		if (e.ctrlKey && e.shiftKey && (e.code === 'KeyC' || e.key === 'C')) {
 			e.preventDefault();
 			e.stopPropagation();

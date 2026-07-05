@@ -52,6 +52,9 @@
     },
     "icon": [
       "icons/logo.png"
+    ],
+    "resources": [
+      "locales/*"
     ]
   }
 }

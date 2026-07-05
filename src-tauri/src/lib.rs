@@ -167,7 +167,14 @@ pub fn run(is_overlay: bool) {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_config_manager::init())
         .plugin(tauri_plugin_vicons::init())
-        .plugin(tauri_plugin_i18n_vsk::init(None));
+        .plugin(tauri_plugin_i18n_vsk::init_with_path(
+            Some("en".to_string()),
+            std::env::current_dir()
+                .ok()
+                .map(|d| d.join("src-tauri/locales"))
+                .filter(|p| p.exists())
+                .map(|p| p.to_string_lossy().to_string())
+        ));
 
     if is_overlay {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {

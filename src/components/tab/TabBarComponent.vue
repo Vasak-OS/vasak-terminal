@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
+import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
 import TabComponent from '@/components/tab/TabComponent.vue';
 import TabDraggableComponent from '@/components/tab/TabDraggableComponent.vue';
 import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
@@ -19,6 +20,8 @@ const props = withDefaults(
 );
 
 const workspacesStore = useWorkspacesStore();
+
+const { t } = useI18n();
 
 const teleportDisabled = computed(() => !props.teleportTarget);
 const teleportTo = computed(() => props.teleportTarget || 'body');
@@ -81,7 +84,7 @@ onBeforeUnmount(() => {
           </button>
         </TooltipTrigger>
         <TooltipContent>
-          'tabs.newTab'
+          {{ t('tabs.newTab') }}
         </TooltipContent>
       </Tooltip>
     </div>

@@ -79,22 +79,68 @@ async function fitTerminal() {
 	}
 
 	fitAddon.fit();
+	applyRectFit();
 
 	if (!isShellReady) {
 		return;
 	}
 
-	void invoke<string>('async_resize_pty', {
-		sessionId: props.sessionId,
-		rows: term.rows,
-		cols: term.cols,
-	});
+	try {
+		await invoke<string>('async_resize_pty', {
+			sessionId: props.sessionId,
+			rows: term.rows,
+			cols: term.cols,
+		});
+	} catch (e) {
+		console.error('resize PTY failed', e);
+	}
+}
+
+function applyRectFit() {
+	const el = terminalElement.value;
+	if (!el) return;
+
+	const rect = el.getBoundingClientRect();
+	if (rect.width === 0 || rect.height === 0) return;
+
+	const dims = (term as any)._core?._renderService?.dimensions;
+	if (!dims || dims.css.cell.width === 0 || dims.css.cell.height === 0) return;
+
+	const cols = Math.max(2, Math.floor(rect.width / dims.css.cell.width));
+	const rows = Math.max(1, Math.floor(rect.height / dims.css.cell.height));
+
+	if (term.rows !== rows || term.cols !== cols) {
+		(term as any)._core._renderService.clear();
+		term.resize(cols, rows);
+	}
 }
 
 function sleep(ms: number) {
 	return new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
 	});
+}
+
+/** Wait until the element has non-zero dimensions (handles overlay window
+ *  being initially hidden/mis-sized on Wayland before the compositor
+ *  responds with the proper layer-surface size).
+ *  Returns false if the element is still 0×0 after the timeout. */
+async function waitForRealSize(
+	el: HTMLElement,
+	timeout = 3000,
+	interval = 30
+): Promise<boolean> {
+	if (el.offsetWidth > 0 && el.offsetHeight > 0) return true;
+
+	const start = Date.now();
+	while (Date.now() - start < timeout) {
+		await sleep(interval);
+		const w = el.offsetWidth;
+		const h = el.offsetHeight;
+		if (w > 0 && h > 0) return true;
+	}
+
+	return false;
 }
 
 async function startPtyReadLoop() {
@@ -235,12 +281,41 @@ onMounted(async () => {
 	term.focus();
 
 	void nextTick().then(async () => {
+		const el = terminalElement.value!;
+
+		// If the element is display:none (v-show hidden tab), skip the wait.
+		// It will be resized when the tab becomes active via the watcher.
+		const hidden =
+			el.offsetWidth === 0 &&
+			el.offsetHeight === 0 &&
+			getComputedStyle(el).display === 'none';
+
+		if (!hidden) {
+			await waitForRealSize(el);
+		}
+
+		// Ensure the font is measured before fitting so xterm.js
+		// computes the correct cell height from the start.
+		const ff = term.options.fontFamily as string;
+		const fs = term.options.fontSize as number;
+		if (typeof document !== 'undefined' && document.fonts) {
+			const specs = [`${fs}px ${ff}`];
+			if (ff !== 'monospace') specs.push(`${fs}px monospace`);
+			await Promise.race([
+				Promise.all(specs.map(s => document.fonts.load(s).catch(() => 0))),
+				sleep(2000),
+			]);
+		}
+		(term as any)._core?._charSizeService?.measure?.();
+		await sleep(50);
+
 		fitAddon.fit();
+		applyRectFit();
+
 		try {
 			await initShell();
 			isShellReady = true;
 			await applyStartupCommandIfAny();
-			fitTerminal();
 			await syncShellStatus();
 			startPtyReadLoop();
 			term.focus();
@@ -248,6 +323,13 @@ onMounted(async () => {
 			isShellReady = false;
 			console.error('Error creating shell:', error);
 		}
+
+		// Attach ResizeObserver after font loading so premature fits
+		// don't use a stale cell height.
+		resizeObserver = new ResizeObserver(() => {
+			fitTerminal();
+		});
+		resizeObserver.observe(el);
 	});
 
 	// Listen for terminal input and write it to the pty
@@ -260,10 +342,6 @@ onMounted(async () => {
 
 	// Handle window resize
 	window.addEventListener('resize', onResize);
-	resizeObserver = new ResizeObserver(() => {
-		fitTerminal();
-	});
-	resizeObserver.observe(terminalElement.value);
 
 	shellStatusIntervalId = setInterval(() => {
 		void syncShellStatus();
@@ -368,8 +446,8 @@ watch(
 	() => props.active,
 	(isActive) => {
 		if (isActive) {
-			void nextTick().then(() => {
-				fitTerminal();
+			void nextTick().then(async () => {
+				await fitTerminal();
 				term.focus();
 			});
 		}
@@ -400,5 +478,5 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div id="terminal" ref="terminalElement" class="h-full w-full"></div>
+  <div id="terminal" ref="terminalElement" class="w-full min-h-0 self-stretch"></div>
 </template>

@@ -4,7 +4,7 @@ mod wayland_layer;
 
 use crate::commands::{
     async_close_shell, async_confirm_startup_command_delivered, async_create_shell,
-    async_get_shell_status, async_read_from_pty, async_resize_pty, async_take_startup_command,
+    async_get_shell_status, async_resize_pty, async_take_startup_command,
     async_write_to_pty, hide_overlay, is_overlay_mode, show_overlay,
 };
 use crate::structs::{AppState, StartupCommandState};
@@ -155,7 +155,6 @@ pub fn run(is_overlay: bool) {
             async_write_to_pty,
             async_resize_pty,
             async_create_shell,
-            async_read_from_pty,
             async_close_shell,
             async_get_shell_status,
             async_take_startup_command,

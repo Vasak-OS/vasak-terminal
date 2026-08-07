@@ -1,7 +1,7 @@
 use portable_pty::PtyPair;
 use std::{
     collections::HashMap,
-    io::{BufReader, Read, Write},
+    io::{Read, Write},
     sync::Arc,
 };
 use tauri::{async_runtime::Mutex as AsyncMutex};
@@ -9,7 +9,8 @@ use tauri::{async_runtime::Mutex as AsyncMutex};
 pub struct TerminalSession {
     pub pty_pair: AsyncMutex<PtyPair>,
     pub writer: AsyncMutex<Box<dyn Write + Send>>,
-    pub reader: AsyncMutex<BufReader<Box<dyn Read + Send>>>,
+    // Taken by the push reader thread once the shell starts (see spawn_reader).
+    pub reader: AsyncMutex<Option<Box<dyn Read + Send>>>,
     pub shell_started: AsyncMutex<bool>,
     pub shell_pid: AsyncMutex<Option<u32>>,
 }

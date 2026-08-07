@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { getSchemeById, useConfigStore, VSKConfig } from '@vasakgroup/plugin-config-manager';
 import { Store } from 'pinia';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -56,7 +57,7 @@ const term = new Terminal({
 
 let terminalDataDisposable: (() => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
-let isPtyReadLoopActive = false;
+let ptyUnlisteners: Array<() => void> = [];
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 let pasteHandler: ((e: ClipboardEvent) => void) | null = null;
 let isShellReady = false;
@@ -143,27 +144,30 @@ async function waitForRealSize(
 	return false;
 }
 
-async function startPtyReadLoop() {
-	isPtyReadLoopActive = true;
-
-	while (isPtyReadLoopActive && !shellExited) {
-		try {
-			const data = await invoke<string | null>('async_read_from_pty', {
-				sessionId: props.sessionId,
-			});
-			if (data) {
-				await writeToTerminal(data);
-			} else {
-				await sleep(16);
-			}
-		} catch (error) {
-			if (!shellExited) {
-				shellExited = true;
-				await workspacesStore.handleShellExit(props.sessionId);
-			}
-			await sleep(100);
-		}
+// Decode a base64 PTY chunk into bytes. Writing raw bytes to xterm.js lets it
+// reassemble multi-byte UTF-8 sequences that are split across chunks.
+function base64ToBytes(b64: string): Uint8Array {
+	const bin = atob(b64);
+	const bytes = new Uint8Array(bin.length);
+	for (let i = 0; i < bin.length; i++) {
+		bytes[i] = bin.charCodeAt(i);
 	}
+	return bytes;
+}
+
+// Push model: subscribe to PTY output/exit events. Must run BEFORE the shell is
+// created so no early output is missed.
+async function setupPtyListeners() {
+	const unOutput = await listen<string>(`pty://output/${props.sessionId}`, (event) => {
+		term.write(base64ToBytes(event.payload));
+	});
+	const unExit = await listen(`pty://exit/${props.sessionId}`, async () => {
+		if (!shellExited) {
+			shellExited = true;
+			await workspacesStore.handleShellExit(props.sessionId);
+		}
+	});
+	ptyUnlisteners.push(unOutput, unExit);
 }
 
 const setTerminalConfig = async () => {
@@ -204,13 +208,6 @@ const setTerminalConfig = async () => {
 		brightWhite: ansi.brightWhite,
 	};
 };
-
-// Write data from pty into the terminal
-function writeToTerminal(data: string) {
-	return new Promise<void>((r) => {
-		term.write(data, () => r());
-	});
-}
 
 // Write data from the terminal to the pty
 function writeToPty(data: string) {
@@ -313,11 +310,12 @@ onMounted(async () => {
 		applyRectFit();
 
 		try {
+			// Subscribe before creating the shell so no PTY output is missed.
+			await setupPtyListeners();
 			await initShell();
 			isShellReady = true;
 			await applyStartupCommandIfAny();
 			await syncShellStatus();
-			startPtyReadLoop();
 			term.focus();
 		} catch (error) {
 			isShellReady = false;
@@ -455,7 +453,8 @@ watch(
 );
 
 onBeforeUnmount(() => {
-	isPtyReadLoopActive = false;
+	ptyUnlisteners.forEach((un) => un());
+	ptyUnlisteners = [];
 	terminalDataDisposable?.();
 	terminalDataDisposable = null;
 	resizeObserver?.disconnect();

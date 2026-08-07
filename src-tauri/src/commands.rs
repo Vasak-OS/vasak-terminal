@@ -3,13 +3,14 @@ use serde::Serialize;
 use std::{
     env,
     fs,
-    io::{BufRead, Write},
+    io::{Read, Write},
     path::Path,
     sync::Arc,
     thread,
 };
 
-use tauri::State;
+use base64::Engine;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::structs::{AppState, TerminalSession};
 
@@ -36,10 +37,36 @@ fn create_terminal_session(rows: u16, cols: u16) -> Result<Arc<TerminalSession>,
     Ok(Arc::new(TerminalSession {
         pty_pair: tauri::async_runtime::Mutex::new(pty_pair),
         writer: tauri::async_runtime::Mutex::new(writer),
-        reader: tauri::async_runtime::Mutex::new(std::io::BufReader::new(reader)),
+        reader: tauri::async_runtime::Mutex::new(Some(reader)),
         shell_started: tauri::async_runtime::Mutex::new(false),
         shell_pid: tauri::async_runtime::Mutex::new(None),
     }))
+}
+
+/// Push model: a dedicated thread does a blocking read on the PTY and emits the
+/// raw bytes (base64) to the frontend as they arrive, then a final exit event.
+/// Sending bytes (not a decoded String) lets xterm.js reassemble multi-byte
+/// UTF-8 across chunks, and the blocking read means no polling.
+fn spawn_reader(app: AppHandle, session_id: String, mut reader: Box<dyn Read + Send>) {
+    thread::spawn(move || {
+        let out_event = format!("pty://output/{session_id}");
+        let exit_event = format!("pty://exit/{session_id}");
+        let mut buf = [0u8; 8192];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => break, // EOF: shell closed the PTY
+                Ok(n) => {
+                    let encoded = base64::engine::general_purpose::STANDARD.encode(&buf[..n]);
+                    if app.emit(&out_event, encoded).is_err() {
+                        break;
+                    }
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(_) => break,
+            }
+        }
+        let _ = app.emit(&exit_event, ());
+    });
 }
 
 #[derive(Serialize)]
@@ -103,89 +130,27 @@ fn read_proc_comm(pid: u32) -> Option<String> {
 }
 
 #[cfg(target_os = "linux")]
-fn basename(path: &str) -> String {
-    Path::new(path)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .map(ToString::to_string)
-        .unwrap_or_else(|| path.to_string())
-}
-
-#[cfg(target_os = "linux")]
 fn read_shell_status_linux(shell_pid: u32) -> ShellStatus {
     let cwd = fs::read_link(format!("/proc/{shell_pid}/cwd"))
         .ok()
         .map(|path| path.to_string_lossy().to_string());
 
-    let (_, tpgid) = match read_proc_stat_pgrp_tpgid(shell_pid) {
+    let (pgrp, tpgid) = match read_proc_stat_pgrp_tpgid(shell_pid) {
         Some(values) => values,
-        None => {
-            return ShellStatus {
-                cwd,
-                running_command: None,
-            };
-        }
+        None => return ShellStatus { cwd, running_command: None },
     };
 
-    if tpgid <= 0 {
-        return ShellStatus {
-            cwd,
-            running_command: None,
-        };
-    }
+    // The controlling terminal's foreground process-group id (tpgid) equals the
+    // pid of that group's leader. When it matches the shell's own group the
+    // shell itself is in the foreground (no command running). Otherwise read
+    // the foreground command directly — no full /proc scan needed.
+    let running_command = if tpgid > 0 && tpgid != pgrp {
+        read_proc_cmdline(tpgid as u32).or_else(|| read_proc_comm(tpgid as u32))
+    } else {
+        None
+    };
 
-    let mut best_pid: Option<u32> = None;
-    let mut shell_name = read_proc_comm(shell_pid).unwrap_or_default().to_lowercase();
-    if shell_name.is_empty() {
-        shell_name = basename(
-            &read_proc_cmdline(shell_pid)
-                .unwrap_or_default()
-                .split_whitespace()
-                .next()
-                .unwrap_or_default()
-                .to_string(),
-        )
-        .to_lowercase();
-    }
-
-    if let Ok(entries) = fs::read_dir("/proc") {
-        for entry in entries.flatten() {
-            let file_name = entry.file_name();
-            let pid = match file_name.to_string_lossy().parse::<u32>() {
-                Ok(pid) => pid,
-                Err(_) => continue,
-            };
-
-            let (pgrp, _) = match read_proc_stat_pgrp_tpgid(pid) {
-                Some(values) => values,
-                None => continue,
-            };
-
-            if pgrp != tpgid {
-                continue;
-            }
-
-            if pid == shell_pid {
-                continue;
-            }
-
-            let comm = read_proc_comm(pid).unwrap_or_default().to_lowercase();
-            if !comm.is_empty() && comm == shell_name {
-                continue;
-            }
-
-            best_pid = Some(best_pid.map_or(pid, |best| best.max(pid)));
-        }
-    }
-
-    let running_command = best_pid.and_then(read_proc_cmdline).or_else(|| {
-        best_pid.and_then(read_proc_comm)
-    });
-
-    ShellStatus {
-        cwd,
-        running_command,
-    }
+    ShellStatus { cwd, running_command }
 }
 
 async fn get_or_create_session(
@@ -216,6 +181,7 @@ async fn get_session(state: &State<'_, AppState>, session_id: &str) -> Result<Ar
 #[tauri::command]
 // create a shell and add to it the $TERM env variable so we can use clear and other commands
 pub async fn async_create_shell(
+    app: AppHandle,
     session_id: &str,
     rows: u16,
     cols: u16,
@@ -264,6 +230,10 @@ pub async fn async_create_shell(
                 thread::spawn(move || {
                     let _ = child.wait();
                 });
+                // Start streaming PTY output to the frontend (push model).
+                if let Some(reader) = session.reader.lock().await.take() {
+                    spawn_reader(app.clone(), session_id.to_string(), reader);
+                }
                 return Ok(());
             }
             Err(err) => {
@@ -291,38 +261,6 @@ pub async fn async_write_to_pty(session_id: &str, data: &str, state: State<'_, A
 
 fn is_process_alive(pid: u32) -> bool {
     Path::new(&format!("/proc/{pid}")).exists()
-}
-
-#[tauri::command]
-pub async fn async_read_from_pty(session_id: &str, state: State<'_, AppState>) -> Result<Option<String>, String> {
-    let session = get_session(&state, session_id).await?;
-    let mut reader = session.reader.lock().await;
-    let data = {
-        let data = reader.fill_buf().map_err(|err| err.to_string())?;
-
-        if data.len() > 0 {
-            std::str::from_utf8(data)
-                .map(|v| Some(v.to_string()))
-                .map_err(|err| err.to_string())?
-        } else {
-            None
-        }
-    };
-
-    if let Some(data) = &data {
-        reader.consume(data.len());
-    }
-
-    if data.is_none() {
-        let shell_pid = *session.shell_pid.lock().await;
-        if let Some(pid) = shell_pid {
-            if !is_process_alive(pid) {
-                return Err("Shell process has exited".to_string());
-            }
-        }
-    }
-
-    Ok(data)
 }
 
 #[tauri::command]

@@ -4481,7 +4481,7 @@ dependencies = [
 
 [[package]]
 name = "vasak-terminal"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
  "gtk",

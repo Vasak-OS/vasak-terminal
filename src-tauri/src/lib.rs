@@ -22,6 +22,37 @@ use tauri::{async_runtime::Mutex as AsyncMutex, Emitter, Manager};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
+/// Where the translations are. The plugin only probes paths relative to the
+/// binary and to the working directory, and none of those exist for a binary in
+/// /usr/bin, so the installed location has to be named explicitly or the tab bar
+/// shows translation keys.
+fn locales_dir() -> Option<String> {
+    let candidates = [
+        PathBuf::from("locales"),
+        PathBuf::from("src-tauri/locales"),
+        PathBuf::from("/usr/share/vasak-terminal/locales"),
+    ];
+
+    candidates
+        .into_iter()
+        .find(|path| path.is_dir())
+        .map(|path| path.to_string_lossy().into_owned())
+}
+
+/// Picks the startup language from the session locale, falling back to Spanish,
+/// which is what the UI shipped with before it was translatable.
+fn default_locale() -> String {
+    let raw = env::var("LC_ALL")
+        .or_else(|_| env::var("LC_MESSAGES"))
+        .or_else(|_| env::var("LANG"))
+        .unwrap_or_default();
+
+    match raw.split(['_', '.', '@']).next().unwrap_or("") {
+        "en" => "en".to_string(),
+        _ => "es".to_string(),
+    }
+}
+
 fn shell_escape_single_quoted(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
@@ -167,12 +198,8 @@ pub fn run(is_overlay: bool) {
         .plugin(tauri_plugin_config_manager::init())
         .plugin(tauri_plugin_vicons::init())
         .plugin(tauri_plugin_i18n_vsk::init_with_path(
-            Some("en".to_string()),
-            std::env::current_dir()
-                .ok()
-                .map(|d| d.join("src-tauri/locales"))
-                .filter(|p| p.exists())
-                .map(|p| p.to_string_lossy().to_string())
+            Some(default_locale()),
+            locales_dir(),
         ));
 
     if is_overlay {

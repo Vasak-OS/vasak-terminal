@@ -19,6 +19,7 @@
     "@tauri-apps/plugin-store": "^2.4.4",
     "@vasakgroup/plugin-config-manager": "^2.2.6",
     "@vasakgroup/plugin-vicons": "^2.1.2",
+    "@vasakgroup/plugin-vsk-contextual-menu": "^2.0.0",
     "@vasakgroup/tauri-plugin-i18n": "^2.1.0",
     "lodash.clonedeep": "^4.5.0",
     "path": "^0.12.7",

@@ -3,7 +3,8 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main",
+    "vsk_context_menu"
   ],
   "permissions": [
     "core:default",
@@ -15,6 +16,7 @@
     "core:window:allow-close",
     "vicons:default",
     "config-manager:default",
+    "vsk-contextual-menu:default",
     "i18n:default",
     "i18n:allow-load-translations",
     "core:window:allow-set-always-on-top",

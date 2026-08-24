@@ -397,3 +397,47 @@ pub fn hide_overlay() -> Result<(), String> {
             .map(|w| w.hide())
     })
 }
+
+/// Portapapeles del sistema.
+///
+/// El webview no puede leer el portapapeles: WebKitGTK no implementa el permiso
+/// «clipboard-read», así que `navigator.clipboard.readText()` no sirve y sin
+/// leerlo no hay «Pegar» en el menú. GTK sí puede, porque es el que ya tiene la
+/// conexión con el compositor, pero sus funciones de portapapeles sólo se pueden
+/// llamar desde el hilo principal: de ahí el salto y el canal para traer la
+/// respuesta.
+fn with_clipboard<T, F>(app: &AppHandle, action: F) -> Result<T, String>
+where
+    F: FnOnce(&gtk::Clipboard) -> T + Send + 'static,
+    T: Send + 'static,
+{
+    let (sender, receiver) = std::sync::mpsc::channel();
+
+    app.run_on_main_thread(move || {
+        let clipboard = gtk::Clipboard::get(&gtk::gdk::SELECTION_CLIPBOARD);
+        let _ = sender.send(action(&clipboard));
+    })
+    .map_err(|error| error.to_string())?;
+
+    receiver.recv().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn clipboard_read_text(app: AppHandle) -> Result<String, String> {
+    with_clipboard(&app, |clipboard| {
+        clipboard
+            .wait_for_text()
+            .map(|text| text.to_string())
+            .unwrap_or_default()
+    })
+}
+
+#[tauri::command]
+pub async fn clipboard_write_text(app: AppHandle, text: String) -> Result<(), String> {
+    with_clipboard(&app, move |clipboard| {
+        clipboard.set_text(&text);
+        // Pedirle al gestor de portapapeles que se quede con el texto: sin
+        // esto, lo copiado se pierde al cerrar la ventana del terminal.
+        clipboard.store();
+    })
+}

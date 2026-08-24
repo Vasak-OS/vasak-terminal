@@ -3980,9 +3980,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-vsk-contextual-menu"
-version = "2.0.0"
+version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cc7d8a72e763b71c77d583fbf3e0c04bfd1ac6a012f56e7181569d6528e3cbe"
+checksum = "d033c1fa30b7eca836258e3c5b87ec413465c95c61a1a7b7fcd2c9f47ad20c2d"
 dependencies = [
  "serde",
  "serde_json",

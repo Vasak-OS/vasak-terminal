@@ -4,5 +4,16 @@
 		"close": "Cerrar",
 		"closeOtherTabs": "Cerrar otras pestañas",
 		"closeAllTabs": "Cerrar todas las pestañas"
+	},
+	"contextMenu": {
+		"copy": "Copiar",
+		"paste": "Pegar",
+		"selectAll": "Seleccionar todo",
+		"clear": "Limpiar",
+		"closeTab": "Cerrar pestaña"
+	},
+	"notifications": {
+		"copied": "Copiado al portapapeles",
+		"clipboardError": "No se pudo usar el portapapeles"
 	}
 }

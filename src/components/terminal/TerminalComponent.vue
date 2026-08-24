@@ -2,6 +2,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { getSchemeById, useConfigStore, VSKConfig } from '@vasakgroup/plugin-config-manager';
+import type { MenuEntry } from '@vasakgroup/plugin-vsk-contextual-menu';
+import { useContextMenu } from '@vasakgroup/plugin-vsk-contextual-menu';
+import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
 import { Store } from 'pinia';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Terminal } from 'xterm';
@@ -25,6 +28,8 @@ const configStore = useConfigStore() as Store<
 >;
 const workspacesStore = useWorkspacesStore();
 const { notify } = useNotification();
+const { t } = useI18n();
+const { show: showContextMenu } = useContextMenu();
 const terminalElement = ref<HTMLElement | null>(null);
 
 const DEFAULT_FONT_SIZE = 14;
@@ -60,6 +65,7 @@ let resizeObserver: ResizeObserver | null = null;
 let ptyUnlisteners: Array<() => void> = [];
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 let pasteHandler: ((e: ClipboardEvent) => void) | null = null;
+let contextMenuHandler: ((e: MouseEvent) => void) | null = null;
 let isShellReady = false;
 let shellExited = false;
 let shellStatusIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -224,6 +230,125 @@ function initShell() {
 	});
 }
 
+// ─── Menú contextual ─────────────────────────────────────────────────────────
+// El clic derecho abre el menú de VasakOS, el mismo de todo el escritorio, con
+// lo que el terminal sabe hacer. Copiar y pegar trabajan sobre la selección real
+// de xterm.js y contra el portapapeles del sistema: el webview no puede leerlo
+// —WebKitGTK no implementa «clipboard-read»—, así que las dos operaciones pasan
+// por GTK, que sí tiene la conexión con el compositor.
+
+async function copySelection() {
+	const selection = term.getSelection();
+	if (!selection) {
+		return;
+	}
+
+	try {
+		await invoke('clipboard_write_text', { text: selection });
+		notify(t('notifications.copied'));
+	} catch (error) {
+		console.error('Failed to copy the selection:', error);
+		notify(t('notifications.clipboardError'), 'error');
+	}
+
+	term.focus();
+}
+
+async function pasteFromClipboard() {
+	try {
+		const text = await invoke<string>('clipboard_read_text');
+		if (text) {
+			writeToPty(text);
+		}
+	} catch (error) {
+		console.error('Failed to read the clipboard:', error);
+		notify(t('notifications.clipboardError'), 'error');
+	}
+
+	term.focus();
+}
+
+function selectAllOutput() {
+	term.selectAll();
+	term.focus();
+}
+
+function clearTerminal() {
+	term.clear();
+	term.focus();
+}
+
+function openNewTab() {
+	void workspacesStore.openNewTabGroup();
+}
+
+async function closeCurrentTab() {
+	const tabGroup = workspacesStore.currentWorkspace?.tabGroups.find((group) =>
+		group.some((tab) => tab.id === props.sessionId)
+	);
+
+	if (tabGroup) {
+		await workspacesStore.closeTabGroup(tabGroup);
+	}
+}
+
+async function openTerminalContextMenu(event: MouseEvent) {
+	// Sin texto seleccionado no hay nada que copiar, y con una sola pestaña
+	// abierta cerrarla es cerrar la ventana: ninguno de los dos ítems aparece
+	// cuando no significaría nada.
+	const items: MenuEntry[] = [];
+
+	if (term.hasSelection()) {
+		items.push({
+			id: 'copy',
+			label: t('contextMenu.copy'),
+			icon: 'edit-copy',
+			accelerator: 'Ctrl+Shift+C',
+		});
+	}
+
+	items.push(
+		{
+			id: 'paste',
+			label: t('contextMenu.paste'),
+			icon: 'edit-paste',
+			accelerator: 'Ctrl+Shift+V',
+		},
+		{ id: 'selectAll', label: t('contextMenu.selectAll'), icon: 'edit-select-all' },
+		{ type: 'separator' },
+		{ id: 'clear', label: t('contextMenu.clear'), icon: 'edit-clear-all' },
+		{ type: 'separator' },
+		{ id: 'newTab', label: t('tabs.newTab'), icon: 'tab-new' }
+	);
+
+	if ((workspacesStore.currentWorkspace?.tabGroups.length ?? 0) > 1) {
+		items.push({ id: 'closeTab', label: t('contextMenu.closeTab'), icon: 'window-close' });
+	}
+
+	const chosen = await showContextMenu(items, event);
+
+	switch (chosen?.id) {
+		case 'copy':
+			await copySelection();
+			break;
+		case 'paste':
+			await pasteFromClipboard();
+			break;
+		case 'selectAll':
+			selectAllOutput();
+			break;
+		case 'clear':
+			clearTerminal();
+			break;
+		case 'newTab':
+			openNewTab();
+			break;
+		case 'closeTab':
+			await closeCurrentTab();
+			break;
+	}
+}
+
 async function applyStartupCommandIfAny() {
 	try {
 		const startupCommand = await invoke<string | null>('async_take_startup_command', {
@@ -345,21 +470,6 @@ onMounted(async () => {
 		void syncShellStatus();
 	}, 1000);
 
-	function copyToClipboard(text: string) {
-		try {
-			navigator.clipboard.writeText(text);
-		} catch {
-			const textarea = document.createElement('textarea');
-			textarea.value = text;
-			textarea.style.position = 'fixed';
-			textarea.style.opacity = '0';
-			document.body.appendChild(textarea);
-			textarea.select();
-			document.execCommand('copy');
-			document.body.removeChild(textarea);
-		}
-	}
-
 	keydownHandler = (e: KeyboardEvent) => {
 		// Zoom in: Ctrl++ (Ctrl+Shift+=) or Ctrl+NumpadAdd
 		if (
@@ -400,15 +510,23 @@ onMounted(async () => {
 		if (e.ctrlKey && e.shiftKey && (e.code === 'KeyC' || e.key === 'C')) {
 			e.preventDefault();
 			e.stopPropagation();
-			const selection = term.getSelection();
-			if (selection) {
-				copyToClipboard(selection);
-				notify('Copied to clipboard');
-			}
+			void copySelection();
+		}
+
+		// Paste: Ctrl+Shift+V
+		if (e.ctrlKey && e.shiftKey && (e.code === 'KeyV' || e.key === 'V')) {
+			e.preventDefault();
+			e.stopPropagation();
+			void pasteFromClipboard();
 		}
 	};
 
 	terminalElement.value.addEventListener('keydown', keydownHandler, { capture: true });
+
+	contextMenuHandler = (e: MouseEvent) => {
+		void openTerminalContextMenu(e);
+	};
+	terminalElement.value.addEventListener('contextmenu', contextMenuHandler);
 
 	pasteHandler = (e: ClipboardEvent) => {
 		const text = e.clipboardData?.getData('text/plain');
@@ -470,6 +588,10 @@ onBeforeUnmount(() => {
 	if (pasteHandler) {
 		terminalElement.value?.removeEventListener('paste', pasteHandler);
 		pasteHandler = null;
+	}
+	if (contextMenuHandler) {
+		terminalElement.value?.removeEventListener('contextmenu', contextMenuHandler);
+		contextMenuHandler = null;
 	}
 	window.removeEventListener('resize', onResize);
 	term.dispose();

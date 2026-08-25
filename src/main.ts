@@ -7,6 +7,16 @@ import App from '@/App.vue';
 import '@/assets/main.css';
 import 'xterm/css/xterm.css';
 
+// Una violación de CSP no se ve: el recurso simplemente no carga y la interfaz
+// queda a medias sin decir nada. Esto la manda al registro del proceso, que es
+// donde se puede encontrar después de un cambio de política.
+document.addEventListener('securitypolicyviolation', (evento) => {
+	console.error(
+		`[CSP] bloqueado ${evento.blockedURI || '(en línea)'} por la directiva ` +
+			`«${evento.violatedDirective}» en ${evento.sourceFile ?? 'documento'}:${evento.lineNumber}`
+	);
+});
+
 const i18n = I18n.getInstance();
 const app = createApp(App);
 const pinia = createPinia();

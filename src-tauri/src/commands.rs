@@ -112,6 +112,18 @@ fn default_shell_status() -> ShellStatus {
 #[cfg(target_os = "linux")]
 fn read_proc_stat_pgrp_tpgid(pid: u32) -> Option<(i32, i32)> {
     let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    parse_stat_pgrp_tpgid(&stat)
+}
+
+/// Saca el grupo de procesos y el grupo en primer plano de `/proc/PID/stat`.
+///
+/// Separado de la lectura para poder probarlo, porque el formato tiene una
+/// trampa: el segundo campo es el nombre del ejecutable entre paréntesis, y
+/// **puede contener espacios y paréntesis**. Por eso se busca el *último* `)` y
+/// no se parte por espacios desde el principio; un proceso llamado
+/// `(raro) cosa)` rompería cualquier otra lectura.
+#[cfg(target_os = "linux")]
+fn parse_stat_pgrp_tpgid(stat: &str) -> Option<(i32, i32)> {
     let end = stat.rfind(')')?;
     let rest = stat.get(end + 2..)?;
     let fields: Vec<&str> = rest.split_whitespace().collect();
@@ -127,6 +139,23 @@ fn read_proc_stat_pgrp_tpgid(pid: u32) -> Option<(i32, i32)> {
 #[cfg(target_os = "linux")]
 fn read_proc_cmdline(pid: u32) -> Option<String> {
     let data = fs::read(format!("/proc/{pid}/cmdline")).ok()?;
+    parse_cmdline(&data)
+}
+
+/// Largo máximo del comando que se muestra en la pestaña.
+#[cfg(target_os = "linux")]
+const CMDLINE_MAX: usize = 120;
+
+/// Arma el comando visible a partir de `/proc/PID/cmdline`, que viene con los
+/// argumentos separados por bytes nulos.
+///
+/// El recorte es por **caracteres y no por bytes**. Cortaba con
+/// `&joined[..117]`, que paniquea si ese byte cae en medio de un carácter
+/// UTF-8: bastaba un comando de 116 caracteres seguido de una `ñ` —una ruta con
+/// acento, algo cotidiano— para tirar el hilo que atiende el estado de la
+/// pestaña.
+#[cfg(target_os = "linux")]
+fn parse_cmdline(data: &[u8]) -> Option<String> {
     if data.is_empty() {
         return None;
     }
@@ -142,8 +171,9 @@ fn read_proc_cmdline(pid: u32) -> Option<String> {
     }
 
     let joined = parts.join(" ");
-    if joined.len() > 120 {
-        return Some(format!("{}...", &joined[..117]));
+    if joined.chars().count() > CMDLINE_MAX {
+        let recortado: String = joined.chars().take(CMDLINE_MAX - 3).collect();
+        return Some(format!("{recortado}..."));
     }
     Some(joined)
 }
@@ -486,4 +516,97 @@ pub async fn clipboard_write_text(app: AppHandle, text: String) -> Result<(), St
         // esto, lo copiado se pierde al cerrar la ventana del terminal.
         clipboard.store();
     })
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    /// Una línea de `/proc/PID/stat` real, de una zsh.
+    const STAT_ZSH: &str =
+        "1234 (zsh) S 1200 1234 1234 34816 1300 4194304 900 0 0 0 1 2 0 0 20 0 1 0 999 0 0";
+
+    #[test]
+    fn se_leen_el_grupo_y_el_primer_plano() {
+        // Campos tras el `)`: estado, ppid, pgrp, sid, tty, tpgid -> pgrp=1234,
+        // tpgid=1300.
+        let (pgrp, tpgid) = parse_stat_pgrp_tpgid(STAT_ZSH).unwrap();
+        assert_eq!(pgrp, 1234);
+        assert_eq!(tpgid, 1300);
+    }
+
+    #[test]
+    fn un_nombre_de_proceso_con_espacios_no_corre_los_campos() {
+        // El nombre está entre paréntesis y puede tener espacios. Partir por
+        // espacios desde el principio daría los campos corridos y un comando en
+        // primer plano inventado.
+        let stat = "77 (Web Content) S 70 77 77 0 -1 4194304 1 0 0 0 1 2 0 0 20 0 1 0 5 0 0";
+        let (pgrp, tpgid) = parse_stat_pgrp_tpgid(stat).unwrap();
+        assert_eq!(pgrp, 77);
+        assert_eq!(tpgid, -1);
+    }
+
+    #[test]
+    fn un_nombre_con_parentesis_se_lee_por_el_ultimo() {
+        // Un ejecutable puede llamarse así, y es la razón por la que se busca el
+        // último `)` y no el primero.
+        let stat = "88 (raro) cosa) S 80 88 88 0 91 4194304 1 0 0 0 1 2 0 0 20 0 1 0 5 0 0";
+        let (pgrp, tpgid) = parse_stat_pgrp_tpgid(stat).unwrap();
+        assert_eq!(pgrp, 88);
+        assert_eq!(tpgid, 91);
+    }
+
+    #[test]
+    fn una_linea_truncada_no_inventa_valores() {
+        assert!(parse_stat_pgrp_tpgid("1 (init) S 0 1").is_none());
+        assert!(parse_stat_pgrp_tpgid("basura sin parentesis").is_none());
+        assert!(parse_stat_pgrp_tpgid("").is_none());
+    }
+
+    #[test]
+    fn los_argumentos_se_juntan_con_espacios() {
+        // /proc/PID/cmdline separa con bytes nulos y suele terminar en uno.
+        let data = b"git\0commit\0-m\0mensaje\0";
+        assert_eq!(parse_cmdline(data).unwrap(), "git commit -m mensaje");
+    }
+
+    #[test]
+    fn un_cmdline_vacio_no_da_comando() {
+        // Los procesos de kernel tienen el cmdline vacío.
+        assert!(parse_cmdline(b"").is_none());
+        assert!(parse_cmdline(b"\0\0\0").is_none());
+    }
+
+    #[test]
+    fn un_comando_largo_con_acentos_no_paniquea() {
+        // Este es el caso que rompía: el recorte era por bytes con
+        // `&joined[..117]`, así que 116 caracteres seguidos de una `ñ` dejaban
+        // el corte en medio del carácter y el hilo se caía. Una ruta con acento
+        // alcanza para llegar acá.
+        let mut comando = "a".repeat(116);
+        comando.push('ñ');
+        comando.push_str(&"b".repeat(200));
+
+        let resultado = parse_cmdline(comando.as_bytes()).expect("tiene que devolver algo");
+        assert!(resultado.ends_with("..."));
+        assert!(resultado.chars().count() <= CMDLINE_MAX);
+    }
+
+    #[test]
+    fn el_recorte_cuenta_caracteres_y_no_bytes() {
+        // Con 200 caracteres multibyte el largo en bytes es el triple; recortar
+        // por bytes habría dejado bastante menos texto del que cabe.
+        let comando = "ñ".repeat(200);
+        let resultado = parse_cmdline(comando.as_bytes()).unwrap();
+        assert_eq!(resultado.chars().count(), CMDLINE_MAX);
+        assert!(resultado.starts_with('ñ'));
+    }
+
+    #[test]
+    fn un_comando_corto_pasa_entero() {
+        assert_eq!(parse_cmdline(b"ls\0-la\0").unwrap(), "ls -la");
+        // Justo en el límite tampoco se toca.
+        let justo = "a".repeat(CMDLINE_MAX);
+        assert_eq!(parse_cmdline(justo.as_bytes()).unwrap(), justo);
+    }
 }

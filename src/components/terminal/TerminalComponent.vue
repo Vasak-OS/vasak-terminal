@@ -69,6 +69,7 @@ let contextMenuHandler: ((e: MouseEvent) => void) | null = null;
 let isShellReady = false;
 let shellExited = false;
 let shellStatusIntervalId: ReturnType<typeof setInterval> | null = null;
+let onVisibilityChange: (() => void) | null = null;
 
 type ShellStatus = {
 	cwd?: string;
@@ -475,9 +476,46 @@ onMounted(async () => {
 	// Handle window resize
 	window.addEventListener('resize', onResize);
 
-	shellStatusIntervalId = setInterval(() => {
+	// El estado de la shell —el directorio y el comando en primer plano— se
+	// consulta una vez por segundo **por pestaña**, y cada consulta lee tres
+	// archivos de /proc. Con cinco pestañas abiertas eran cinco idas y vueltas
+	// por el IPC por segundo, para siempre.
+	//
+	// No se puede empujar desde el backend: no hay notificación del kernel
+	// cuando cambia el grupo en primer plano de un PTY, así que alguien tiene
+	// que preguntar. Lo que sí se puede es no preguntar cuando nadie mira: con
+	// la ventana minimizada o en otro escritorio, el sondeo no tiene lectores.
+	const arrancarSondeo = () => {
+		if (shellStatusIntervalId !== null) {
+			return;
+		}
+		shellStatusIntervalId = setInterval(() => {
+			void syncShellStatus();
+		}, 1000);
+	};
+
+	const detenerSondeo = () => {
+		if (shellStatusIntervalId !== null) {
+			clearInterval(shellStatusIntervalId);
+			shellStatusIntervalId = null;
+		}
+	};
+
+	onVisibilityChange = () => {
+		if (document.hidden) {
+			detenerSondeo();
+			return;
+		}
+		// Al volver se consulta ya, sin esperar el próximo tick: el directorio
+		// pudo haber cambiado mientras la ventana estaba tapada.
 		void syncShellStatus();
-	}, 1000);
+		arrancarSondeo();
+	};
+	document.addEventListener('visibilitychange', onVisibilityChange);
+
+	if (!document.hidden) {
+		arrancarSondeo();
+	}
 
 	keydownHandler = (e: KeyboardEvent) => {
 		// Zoom in: Ctrl++ (Ctrl+Shift+=) or Ctrl+NumpadAdd
@@ -589,6 +627,10 @@ onBeforeUnmount(() => {
 	if (shellStatusIntervalId) {
 		clearInterval(shellStatusIntervalId);
 		shellStatusIntervalId = null;
+	}
+	if (onVisibilityChange) {
+		document.removeEventListener('visibilitychange', onVisibilityChange);
+		onVisibilityChange = null;
 	}
 	if (keydownHandler) {
 		terminalElement.value?.removeEventListener('keydown', keydownHandler, { capture: true });

@@ -1,6 +1,5 @@
 mod commands;
 mod structs;
-mod wayland_layer;
 
 use crate::commands::{
     async_close_shell, async_confirm_startup_command_delivered, async_create_shell,

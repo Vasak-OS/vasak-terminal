@@ -4600,7 +4600,6 @@ dependencies = [
 name = "vasak-terminal"
 version = "0.3.1"
 dependencies = [
- "base64 0.22.1",
  "gtk",
  "gtk-layer-shell",
  "portable-pty",

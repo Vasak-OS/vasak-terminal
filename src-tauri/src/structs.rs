@@ -7,7 +7,12 @@ use std::{
 use tauri::{async_runtime::Mutex as AsyncMutex, ipc::Channel, ipc::InvokeResponseBody};
 
 pub struct TerminalSession {
-    pub pty_pair: AsyncMutex<PtyPair>,
+    /// `Option` para poder **soltarlo** al cerrar la pestaña.
+    ///
+    /// Mientras el extremo esclavo siga abierto en este proceso, el maestro no
+    /// recibe EOF aunque la shell haya muerto, así que el hilo lector se queda
+    /// bloqueado para siempre y con él el par y sus descriptores.
+    pub pty_pair: AsyncMutex<Option<PtyPair>>,
     pub writer: AsyncMutex<Box<dyn Write + Send>>,
     // Taken by the push reader thread once the shell starts (see spawn_reader).
     pub reader: AsyncMutex<Option<Box<dyn Read + Send>>>,

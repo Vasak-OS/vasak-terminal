@@ -35,7 +35,7 @@ fn create_terminal_session(rows: u16, cols: u16) -> Result<Arc<TerminalSession>,
         .map_err(|err| err.to_string())?;
 
     Ok(Arc::new(TerminalSession {
-        pty_pair: tauri::async_runtime::Mutex::new(pty_pair),
+        pty_pair: tauri::async_runtime::Mutex::new(Some(pty_pair)),
         writer: tauri::async_runtime::Mutex::new(writer),
         reader: tauri::async_runtime::Mutex::new(Some(reader)),
         shell_started: tauri::async_runtime::Mutex::new(false),
@@ -295,7 +295,14 @@ pub async fn async_create_shell(
         let mut cmd = CommandBuilder::new(shell.as_str());
         cmd.env("TERM", "xterm-256color");
 
-        match session.pty_pair.lock().await.slave.spawn_command(cmd) {
+        let generado = {
+            let par = session.pty_pair.lock().await;
+            let Some(par) = par.as_ref() else {
+                return Err("La sesión ya se cerró".to_string());
+            };
+            par.slave.spawn_command(cmd)
+        };
+        match generado {
             Ok(mut child) => {
                 let pid = child.process_id();
                 if let Some(shell_pid) = pid {
@@ -351,10 +358,12 @@ pub async fn async_resize_pty(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let session = get_session(&state, session_id).await?;
-    let resize_result = session
-        .pty_pair
-        .lock()
-        .await
+    let par = session.pty_pair.lock().await;
+    let Some(par) = par.as_ref() else {
+        // La pestaña se cerró mientras llegaba el redimensionado.
+        return Ok(());
+    };
+    let resize_result = par
         .master
         .resize(PtySize {
             rows,
@@ -376,9 +385,9 @@ pub async fn async_close_shell(session_id: &str, state: State<'_, AppState>) -> 
         return Ok(());
     };
 
-    // Sacarla del mapa no alcanza: el hilo lector tiene su propio `Arc` y está
-    // bloqueado en `read`, así que sin esto la shell seguía corriendo y el PTY,
-    // el escritor y el canal quedaban vivos por cada pestaña cerrada.
+    // La bandera sola no alcanza: el lector está **ya** bloqueado en `read` y no
+    // la consulta hasta que esa lectura devuelva. Sirve para que no arranque una
+    // vuelta más, no para despertarlo.
     sesion.vivo.store(false, std::sync::atomic::Ordering::SeqCst);
 
     // Suelta el canal, así el lector no puede seguir escribiendo a una vista que
@@ -387,15 +396,24 @@ pub async fn async_close_shell(session_id: &str, state: State<'_, AppState>) -> 
         *salida = None;
     }
 
-    // Y se le termina la shell. Matar el grupo entero y no sólo al líder: lo que
-    // esté corriendo dentro —un editor, un `tail -f`— también tiene que irse, y
-    // es lo que además despierta al lector con EOF.
+    // Termina la shell y lo que esté corriendo dentro. Al grupo entero y no sólo
+    // al líder: un editor o un `tail -f` también tienen que irse.
     if let Some(pid) = *sesion.shell_pid.lock().await {
         // SAFETY: `pid` salió de `process_id()` de este mismo proceso hijo.
         unsafe {
             libc::kill(-(pid as i32), libc::SIGHUP);
         }
     }
+
+    // Y **esto** es lo que despierta al lector: soltar el extremo esclavo del
+    // PTY.
+    //
+    // Mientras el esclavo siga abierto en este proceso, el maestro no recibe
+    // EOF aunque la shell haya muerto —hay otro descriptor con el otro lado
+    // abierto—, así que la lectura bloqueada nunca vuelve y el hilo, el PtyPair
+    // y sus descriptores quedan retenidos por cada pestaña cerrada. Soltar el
+    // par cierra el esclavo, el maestro devuelve 0 y el hilo termina.
+    drop(sesion.pty_pair.lock().await.take());
 
     Ok(())
 }

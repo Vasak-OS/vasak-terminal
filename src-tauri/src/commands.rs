@@ -41,6 +41,7 @@ fn create_terminal_session(rows: u16, cols: u16) -> Result<Arc<TerminalSession>,
         shell_started: tauri::async_runtime::Mutex::new(false),
         shell_pid: tauri::async_runtime::Mutex::new(None),
         output: std::sync::Mutex::new(None),
+        vivo: std::sync::atomic::AtomicBool::new(true),
     }))
 }
 
@@ -67,6 +68,9 @@ fn spawn_reader(
         let exit_event = format!("pty://exit/{session_id}");
         let mut buf = [0u8; 8192];
         loop {
+            if !session.vivo.load(std::sync::atomic::Ordering::SeqCst) {
+                break;
+            }
             match reader.read(&mut buf) {
                 Ok(0) => break, // EOF: la shell cerró el PTY
                 Ok(n) => {
@@ -363,8 +367,36 @@ pub async fn async_resize_pty(
 
 #[tauri::command]
 pub async fn async_close_shell(session_id: &str, state: State<'_, AppState>) -> Result<(), String> {
-    let mut sessions = state.sessions.lock().await;
-    sessions.remove(session_id);
+    let sesion = {
+        let mut sessions = state.sessions.lock().await;
+        sessions.remove(session_id)
+    };
+
+    let Some(sesion) = sesion else {
+        return Ok(());
+    };
+
+    // Sacarla del mapa no alcanza: el hilo lector tiene su propio `Arc` y está
+    // bloqueado en `read`, así que sin esto la shell seguía corriendo y el PTY,
+    // el escritor y el canal quedaban vivos por cada pestaña cerrada.
+    sesion.vivo.store(false, std::sync::atomic::Ordering::SeqCst);
+
+    // Suelta el canal, así el lector no puede seguir escribiendo a una vista que
+    // ya no existe.
+    if let Ok(mut salida) = sesion.output.lock() {
+        *salida = None;
+    }
+
+    // Y se le termina la shell. Matar el grupo entero y no sólo al líder: lo que
+    // esté corriendo dentro —un editor, un `tail -f`— también tiene que irse, y
+    // es lo que además despierta al lector con EOF.
+    if let Some(pid) = *sesion.shell_pid.lock().await {
+        // SAFETY: `pid` salió de `process_id()` de este mismo proceso hijo.
+        unsafe {
+            libc::kill(-(pid as i32), libc::SIGHUP);
+        }
+    }
+
     Ok(())
 }
 

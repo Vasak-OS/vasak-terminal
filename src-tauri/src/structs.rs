@@ -13,6 +13,13 @@ pub struct TerminalSession {
     pub reader: AsyncMutex<Option<Box<dyn Read + Send>>>,
     pub shell_started: AsyncMutex<bool>,
     pub shell_pid: AsyncMutex<Option<u32>>,
+    /// Se pone en `false` al cerrar la pestaña, para que el lector corte.
+    ///
+    /// El hilo lector tiene su propio `Arc<TerminalSession>` y está bloqueado en
+    /// `read`, así que sacar la sesión del mapa no lo despertaba: la pestaña se
+    /// cerraba y el PTY, el escritor, el canal y la shell seguían vivos hasta
+    /// que se cerrara la aplicación.
+    pub vivo: std::sync::atomic::AtomicBool,
     /// Por dónde sale lo que escribe el PTY.
     ///
     /// Guardado en la sesión y no capturado por el hilo lector porque un canal

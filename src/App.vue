@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import type { Store } from 'pinia';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useConfigStore } from '@vasakgroup/plugin-config-manager';
+import type { Store } from 'pinia';
 import { onMounted, onUnmounted, ref } from 'vue';
-import WindowAppLayout from '@/layouts/WindowAppLayout.vue';
 import OverlayLayout from '@/components/overlay/OverlayLayout.vue';
+import WindowAppLayout from '@/layouts/WindowAppLayout.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 
 const isOverlay = ref(false);

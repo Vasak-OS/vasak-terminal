@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import TabComponent from '@/components/tab/TabComponent.vue';
 import TabDraggableComponent from '@/components/tab/TabDraggableComponent.vue';
 import Tooltip from '@/components/ui/tooltip/Tooltip.vue';

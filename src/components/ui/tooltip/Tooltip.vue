@@ -1,4 +1,7 @@
 <script setup lang="ts">
+/** biome-ignore-all lint/style/useVueMultiWordComponentNames: la regla existe para
+ * que el nombre de un componente no choque con un elemento HTML. Ninguno de estos
+ * lo es, y renombrarlo obligaría a tocar cada uso sin ganar nada. */
 import { computed, provide, ref } from 'vue';
 
 interface Props {

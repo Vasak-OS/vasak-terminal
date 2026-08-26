@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from 'vue';
+import { computed, nextTick, onMounted, ref } from 'vue';
 import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
 import NotificationToast from '@/components/ui/notification/NotificationToast.vue';
-import { useWorkspacesStore } from '@/stores/workspaces';
 import { useOverlay } from '@/composables/useOverlay';
+import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab } from '@/types/workspaces';
 
 const workspacesStore = useWorkspacesStore();

@@ -36,7 +36,11 @@ const DEFAULT_FONT_SIZE = 14;
 
 function getSavedFontSize(): number {
 	try {
-		return parseInt(localStorage.getItem('vterminal-font-size') || '') || DEFAULT_FONT_SIZE;
+		// Con base explícita: sin ella, un valor guardado como «0x10» se leería
+		// como 16 en lugar de descartarse.
+		return (
+			Number.parseInt(localStorage.getItem('vterminal-font-size') || '', 10) || DEFAULT_FONT_SIZE
+		);
 	} catch {
 		return DEFAULT_FONT_SIZE;
 	}
@@ -133,11 +137,7 @@ function sleep(ms: number) {
  *  being initially hidden/mis-sized on Wayland before the compositor
  *  responds with the proper layer-surface size).
  *  Returns false if the element is still 0×0 after the timeout. */
-async function waitForRealSize(
-	el: HTMLElement,
-	timeout = 3000,
-	interval = 30
-): Promise<boolean> {
+async function waitForRealSize(el: HTMLElement, timeout = 3000, interval = 30): Promise<boolean> {
 	if (el.offsetWidth > 0 && el.offsetHeight > 0) return true;
 
 	const start = Date.now();
@@ -413,14 +413,16 @@ onMounted(async () => {
 	term.focus();
 
 	void nextTick().then(async () => {
-		const el = terminalElement.value!;
+		// La pestaña puede haberse cerrado entre `term.open()` y este tick, y
+		// entonces el elemento ya no está. Con el `!` que había, lo que seguía
+		// leía propiedades de null.
+		const el = terminalElement.value;
+		if (!el) return;
 
 		// If the element is display:none (v-show hidden tab), skip the wait.
 		// It will be resized when the tab becomes active via the watcher.
 		const hidden =
-			el.offsetWidth === 0 &&
-			el.offsetHeight === 0 &&
-			getComputedStyle(el).display === 'none';
+			el.offsetWidth === 0 && el.offsetHeight === 0 && getComputedStyle(el).display === 'none';
 
 		if (!hidden) {
 			await waitForRealSize(el);
@@ -434,7 +436,7 @@ onMounted(async () => {
 			const specs = [`${fs}px ${ff}`];
 			if (ff !== 'monospace') specs.push(`${fs}px monospace`);
 			await Promise.race([
-				Promise.all(specs.map(s => document.fonts.load(s).catch(() => 0))),
+				Promise.all(specs.map((s) => document.fonts.load(s).catch(() => 0))),
 				sleep(2000),
 			]);
 		}
@@ -519,10 +521,7 @@ onMounted(async () => {
 
 	keydownHandler = (e: KeyboardEvent) => {
 		// Zoom in: Ctrl++ (Ctrl+Shift+=) or Ctrl+NumpadAdd
-		if (
-			e.ctrlKey &&
-			((e.code === 'Equal' && e.shiftKey) || e.code === 'NumpadAdd')
-		) {
+		if (e.ctrlKey && ((e.code === 'Equal' && e.shiftKey) || e.code === 'NumpadAdd')) {
 			e.preventDefault();
 			e.stopPropagation();
 			const cur = (term.options.fontSize as number) || DEFAULT_FONT_SIZE;
@@ -618,7 +617,9 @@ watch(
 );
 
 onBeforeUnmount(() => {
-	ptyUnlisteners.forEach((un) => un());
+	ptyUnlisteners.forEach((un) => {
+		un();
+	});
 	ptyUnlisteners = [];
 	terminalDataDisposable?.();
 	terminalDataDisposable = null;

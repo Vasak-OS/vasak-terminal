@@ -17,6 +17,7 @@
     "vicons:default",
     "config-manager:default",
     "vsk-contextual-menu:default",
+    "vsk-journal:default",
     "i18n:default",
     "i18n:allow-load-translations",
     "core:window:allow-set-always-on-top",

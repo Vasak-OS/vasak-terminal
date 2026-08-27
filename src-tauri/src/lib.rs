@@ -199,6 +199,11 @@ pub fn run(is_overlay: bool) {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_config_manager::init())
         .plugin(tauri_plugin_vicons::init())
+        // El diario del sistema, con el nombre de esta aplicación. Va **primero**
+        // de todos los plugins: instala el gancho de pánico, y un pánico mientras
+        // arranca otro plugin es de los más probables y de los que menos rastro
+        // dejan — sin esto sólo queda un volcado de núcleo sin símbolos.
+        .plugin(tauri_plugin_vsk_journal::init())
         .plugin(tauri_plugin_vsk_contextual_menu::init())
         .plugin(tauri_plugin_i18n_vsk::init_with_path(
             Some(default_locale()),

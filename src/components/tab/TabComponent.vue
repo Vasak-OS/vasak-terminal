@@ -182,7 +182,7 @@ async function closeAllTabs() {
             </div>
 
             <button v-if="showCloseButton"
-              @click.stop="emit('close-tab', props.tabGroup)">
+              @click.stop="emit('close-tab', props.tabGroup)" :aria-label="t('tabs.close')">
               <img :src="xIcon" :alt="t('tabs.close')" class="h-6 w-6" />
             </button>
           </div>

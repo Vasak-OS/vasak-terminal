@@ -1,19 +1,24 @@
 {
-	"tabs": {
-		"newTab": "New tab",
-		"close": "Close",
-		"closeOtherTabs": "Close other tabs",
-		"closeAllTabs": "Close all tabs"
-	},
-	"contextMenu": {
-		"copy": "Copy",
-		"paste": "Paste",
-		"selectAll": "Select all",
-		"clear": "Clear",
-		"closeTab": "Close tab"
-	},
-	"notifications": {
-		"copied": "Copied to the clipboard",
-		"clipboardError": "The clipboard could not be used"
-	}
+  "tabs": {
+    "newTab": "New tab",
+    "close": "Close",
+    "closeOtherTabs": "Close other tabs",
+    "closeAllTabs": "Close all tabs"
+  },
+  "contextMenu": {
+    "copy": "Copy",
+    "paste": "Paste",
+    "selectAll": "Select all",
+    "clear": "Clear",
+    "closeTab": "Close tab"
+  },
+  "notifications": {
+    "copied": "Copied to the clipboard",
+    "clipboardError": "The clipboard could not be used"
+  },
+  "windowControls": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "close": "Close"
+  }
 }

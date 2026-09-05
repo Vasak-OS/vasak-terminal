@@ -1,7 +1,12 @@
 <script lang="ts" setup>
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { getSchemeById, useConfigStore, VSKConfig } from '@vasakgroup/plugin-config-manager';
+import {
+	getSchemeById,
+	pilaDeFuente,
+	useConfigStore,
+	VSKConfig,
+} from '@vasakgroup/plugin-config-manager';
 import type { MenuEntry } from '@vasakgroup/plugin-vsk-contextual-menu';
 import { useContextMenu } from '@vasakgroup/plugin-vsk-contextual-menu';
 import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
@@ -189,10 +194,15 @@ const setTerminalConfig = async () => {
 	const conf = configStore.config as VSKConfig | null;
 	if (!conf) return;
 
-	// Apply font from config
-	if (conf.fonts?.terminal) {
-		term.options.fontFamily = conf.fonts.terminal;
-	}
+	// La fuente de la terminal, con `monospace` al final de la pila.
+	//
+	// Se asigna siempre y no sólo cuando hay una elegida: si alguien borra la
+	// fuente en Configuración, con la condición anterior la terminal se quedaba
+	// con la vieja hasta reiniciarla. Y la pila importa más acá que en el resto
+	// del escritorio — una fuente desinstalada dejaba a xterm midiendo celdas
+	// contra una familia que no existe, y una terminal con ancho variable no se
+	// ve fea: rompe todo lo que se alinee por columnas.
+	term.options.fontFamily = pilaDeFuente(conf.fonts?.terminal, 'terminal');
 
 	const scheme = await getSchemeById(conf.style['color-scheme']);
 	if (!scheme) return;

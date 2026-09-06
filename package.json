@@ -15,9 +15,9 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/api": "^2.11.1",
-    "@tauri-apps/plugin-shell": "^2.3.5",
+    "@tauri-apps/plugin-shell": "^2.3.6",
     "@tauri-apps/plugin-store": "^2.4.4",
-    "@vasakgroup/plugin-config-manager": "^2.2.6",
+    "@vasakgroup/plugin-config-manager": "^2.5.0",
     "@vasakgroup/plugin-vicons": "^2.1.2",
     "@vasakgroup/plugin-vsk-contextual-menu": "^2.0.2",
     "@vasakgroup/plugin-vsk-journal": "^2.0.0",
@@ -26,22 +26,22 @@
     "path": "^0.12.7",
     "pinia": "^3.0.4",
     "url": "^0.11.4",
-    "vue": "^3.5.41",
+    "vue": "^3.5.42",
     "vue3-smooth-dnd": "^0.0.6",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.8",
+    "@biomejs/biome": "^2.5.12",
     "@tailwindcss/postcss": "^4.3.3",
     "@tauri-apps/cli": "^2.11.4",
     "@types/lodash.clonedeep": "^4.5.9",
     "@types/node": "^25.9.5",
     "@vitejs/plugin-vue": "^6.0.8",
-    "postcss": "^8.5.26",
+    "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "vite": "^7.3.6",
-    "vue-tsc": "^3.3.9"
+    "vue-tsc": "^3.3.11"
   }
 }

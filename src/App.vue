@@ -2,7 +2,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useConfigStore } from '@vasakgroup/plugin-config-manager';
-import type { Store } from 'pinia';
 import { onMounted, onUnmounted, ref } from 'vue';
 import OverlayLayout from '@/components/overlay/OverlayLayout.vue';
 import WindowAppLayout from '@/layouts/WindowAppLayout.vue';
@@ -18,10 +17,7 @@ onMounted(async () => {
 
 		await workspacesStore.init();
 
-		const configStore = useConfigStore() as Store<
-			'config',
-			{ config: any; loadConfig: () => Promise<void> }
-		>;
+		const configStore = useConfigStore();
 		await configStore.loadConfig();
 
 		unListenConfig.value = await listen('config-changed', async () => {

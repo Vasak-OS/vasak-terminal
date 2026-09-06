@@ -10,7 +10,6 @@ import {
 import type { MenuEntry } from '@vasakgroup/plugin-vsk-contextual-menu';
 import { useContextMenu } from '@vasakgroup/plugin-vsk-contextual-menu';
 import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
-import { Store } from 'pinia';
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
@@ -27,10 +26,7 @@ const props = withDefaults(
 	}
 );
 
-const configStore = useConfigStore() as Store<
-	'config',
-	{ config: VSKConfig; loadConfig: () => Promise<void> }
->;
+const configStore = useConfigStore();
 const workspacesStore = useWorkspacesStore();
 const { notify } = useNotification();
 const { t } = useI18n();

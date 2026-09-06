@@ -68,6 +68,18 @@ const term = new Terminal({
 let terminalDataDisposable: (() => void) | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let ptyUnlisteners: Array<() => void> = [];
+/**
+ * Si el componente ya se desmontó.
+ *
+ * El arranque de la terminal es asincrónico y largo: espera a que el elemento
+ * tenga tamaño real, a que carguen las fuentes, y recién ahí crea la shell.
+ * Cerrar la pestaña en el medio no lo detenía, así que el trabajo seguía y
+ * creaba cosas **después** de que la limpieza ya había corrido — y la limpieza
+ * no vuelve a pasar. El resultado era una shell viva que nadie iba a matar.
+ */
+let desmontado = false;
+/** Si se llegó a crear la shell, para poder cerrarla si hay que abortar. */
+let shellCreada = false;
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 let pasteHandler: ((e: ClipboardEvent) => void) | null = null;
 let contextMenuHandler: ((e: MouseEvent) => void) | null = null;
@@ -425,6 +437,31 @@ onMounted(async () => {
 		const el = terminalElement.value;
 		if (!el) return;
 
+		/**
+		 * Si todavía tiene sentido seguir armando esta terminal.
+		 *
+		 * Se comprueba el elemento además de la bandera porque no son lo mismo:
+		 * la bandera cubre el desmontaje, y comparar el elemento cubre que la
+		 * referencia haya pasado a apuntar a otro — dos formas distintas de que
+		 * lo que sigue ya no sea para esta pestaña.
+		 */
+		const sigue = () => !desmontado && terminalElement.value === el;
+
+		/** Suelta lo que se haya creado antes de que se cancelara. */
+		const abortar = async () => {
+			ptyUnlisteners.forEach((un) => {
+				un();
+			});
+			ptyUnlisteners = [];
+			if (shellCreada) {
+				// Sin esto queda un proceso vivo por cada pestaña que se cierre
+				// mientras arranca, y no hay nada que lo vuelva a mirar.
+				await invoke('async_close_shell', { sessionId: props.sessionId }).catch(() => {});
+				shellCreada = false;
+			}
+			isShellReady = false;
+		};
+
 		// If the element is display:none (v-show hidden tab), skip the wait.
 		// It will be resized when the tab becomes active via the watcher.
 		const hidden =
@@ -432,6 +469,7 @@ onMounted(async () => {
 
 		if (!hidden) {
 			await waitForRealSize(el);
+			if (!sigue()) return;
 		}
 
 		// Ensure the font is measured before fitting so xterm.js
@@ -445,9 +483,11 @@ onMounted(async () => {
 				Promise.all(specs.map((s) => document.fonts.load(s).catch(() => 0))),
 				sleep(2000),
 			]);
+			if (!sigue()) return;
 		}
 		(term as any)._core?._charSizeService?.measure?.();
 		await sleep(50);
+		if (!sigue()) return;
 
 		fitAddon.fit();
 		applyRectFit();
@@ -455,15 +495,26 @@ onMounted(async () => {
 		try {
 			// Subscribe before creating the shell so no PTY output is missed.
 			await setupPtyListeners();
+			if (!sigue()) return await abortar();
+
 			await initShell();
+			shellCreada = true;
+			if (!sigue()) return await abortar();
+
 			isShellReady = true;
 			await applyStartupCommandIfAny();
+			if (!sigue()) return await abortar();
+
 			await syncShellStatus();
+			if (!sigue()) return await abortar();
+
 			term.focus();
 		} catch (error) {
 			isShellReady = false;
 			console.error('Error creating shell:', error);
 		}
+
+		if (!sigue()) return await abortar();
 
 		// Attach ResizeObserver after font loading so premature fits
 		// don't use a stale cell height.
@@ -623,6 +674,9 @@ watch(
 );
 
 onBeforeUnmount(() => {
+	// Antes que nada: lo que el arranque diferido siga haciendo tiene que ver
+	// esto en cuanto vuelva de su próximo `await`.
+	desmontado = true;
 	ptyUnlisteners.forEach((un) => {
 		un();
 	});

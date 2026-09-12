@@ -21,7 +21,7 @@
     "@vasakgroup/plugin-vicons": "^2.1.2",
     "@vasakgroup/plugin-vsk-contextual-menu": "^2.0.2",
     "@vasakgroup/plugin-vsk-journal": "^2.0.0",
-    "@vasakgroup/tauri-plugin-i18n": "^2.1.0",
+    "@vasakgroup/tauri-plugin-i18n": "^2.3.0",
     "lodash.clonedeep": "^4.5.0",
     "path": "^0.12.7",
     "pinia": "^3.0.4",

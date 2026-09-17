@@ -287,9 +287,15 @@ pub async fn async_create_shell(
         *shell_started = true;
     }
 
-    // El programa que pidió `-e`, si lo pidió. Se saca una sola vez: es de esta
-    // sesión y no de las pestañas que se abran después en la misma ventana.
-    let pedido = state.comando.lock().await.take();
+    // El programa que pidió `-e`, si lo pidió. Se **copia** y no se saca: se
+    // borra recién cuando arrancó de verdad.
+    //
+    // Sacarlo acá lo perdía en cuanto un intento fallaba. `get_or_create_session`
+    // devuelve la misma sesión después de un fallo y `shell_started` vuelve a
+    // `false`, así que el frontend puede reintentar — y ese reintento entraba por
+    // la rama sin comando y abría **una shell en lugar del programa pedido**,
+    // que es exactamente el silencio que este camino trata de evitar.
+    let pedido = state.comando.lock().await.clone();
 
     // Qué se va a correr, en orden de preferencia. Cada candidato es un `argv`
     // entero y no una cadena, así que los argumentos llegan tal cual se
@@ -339,6 +345,11 @@ pub async fn async_create_shell(
         };
         match generado {
             Ok(mut child) => {
+                // Arrancó: recién ahora deja de estar pendiente, así la pestaña
+                // siguiente de esta misma ventana recibe su shell y no otra
+                // copia del programa.
+                *state.comando.lock().await = None;
+
                 let pid = child.process_id();
                 if let Some(shell_pid) = pid {
                     let mut session_shell_pid = session.shell_pid.lock().await;

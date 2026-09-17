@@ -17,8 +17,13 @@
 //!
 //! Después de la marca va el programa con sus argumentos, uno por token. La
 //! forma de un solo token con espacios —`-e "ls -la"`— también se entiende,
-//! porque es como la escribe la gente a mano; ahí sí hay que partir, y se parte
-//! con las reglas de la shell.
+//! porque es como la escribe la gente a mano.
+//!
+//! Esa segunda forma es ambigua y hay que desempatarla mirando el disco:
+//! `-e "/tmp/mi programa"` es **un** programa cuyo nombre lleva un espacio, y
+//! `-e "ls -la"` son dos cosas. Partir siempre rompe el primero; no partir nunca
+//! rompe el segundo. Así que primero se prueba el token entero como programa, y
+//! sólo si no existe se parte con las reglas de la shell.
 //!
 //! # Lo que no
 //!
@@ -46,6 +51,16 @@ const MARCAS: [&str; 3] = ["-e", "--command", "--"];
 
 /// Lee la línea de comandos, sin el nombre del programa.
 pub fn leer(args: &[String]) -> Invocacion {
+    let rutas = rutas_del_entorno();
+
+    leer_con(args, |programa| esta_disponible(programa, &rutas))
+}
+
+/// Lo mismo, diciéndole cómo se comprueba que un programa exista.
+///
+/// Por parámetro para poder probarlo: con el disco de verdad, la prueba diría
+/// cosas distintas según qué tenga instalado quien la corra.
+pub fn leer_con(args: &[String], existe: impl Fn(&str) -> bool) -> Invocacion {
     let mut overlay = false;
 
     for (posicion, arg) in args.iter().enumerate() {
@@ -56,7 +71,7 @@ pub fn leer(args: &[String]) -> Invocacion {
                 // ajeno sería colgárselo a la sesión de otro. Con un comando,
                 // la ventana es común y propia.
                 overlay: false,
-                comando: comando_de(&args[posicion + 1..]),
+                comando: comando_de(&args[posicion + 1..], &existe),
             };
         }
 
@@ -72,13 +87,14 @@ pub fn leer(args: &[String]) -> Invocacion {
 }
 
 /// El programa que sigue a la marca.
-fn comando_de(resto: &[String]) -> Option<Vec<String>> {
+fn comando_de(resto: &[String], existe: impl Fn(&str) -> bool) -> Option<Vec<String>> {
     let argv = match resto {
         // `-e` y nada más. No hay programa, así que se abre la shell de
         // siempre: mejor una terminal común que una ventana que se cierra sola.
         [] => return None,
-        // Un solo token con espacios es la forma escrita a mano.
-        [solo] if solo.contains(char::is_whitespace) => split(solo).ok()?,
+        // Un solo token con espacios: o es un programa con un espacio en el
+        // nombre, o es una línea escrita a mano. Gana el programa si existe.
+        [solo] if solo.contains(char::is_whitespace) && !existe(solo) => split(solo).ok()?,
         _ => resto.to_vec(),
     };
 
@@ -137,8 +153,16 @@ pub fn rutas_del_entorno() -> Vec<PathBuf> {
 mod pruebas {
     use super::*;
 
+    /// Ningún programa existe, que es el caso de casi todas las pruebas.
     fn leer_de(args: &[&str]) -> Invocacion {
-        leer(&args.iter().map(|a| a.to_string()).collect::<Vec<_>>())
+        leer_de_con(args, |_| false)
+    }
+
+    fn leer_de_con(args: &[&str], existe: impl Fn(&str) -> bool) -> Invocacion {
+        leer_con(
+            &args.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
+            existe,
+        )
     }
 
     fn comando(args: &[&str]) -> Option<Vec<String>> {
@@ -188,6 +212,15 @@ mod pruebas {
             leer_de(&["-e", "ls -la '/un directorio'"]).comando,
             comando(&["ls", "-la", "/un directorio"])
         );
+    }
+
+    #[test]
+    fn un_programa_con_un_espacio_en_el_nombre_no_se_parte() {
+        // `-e "/tmp/mi programa"` es un programa, no dos. Partirlo daría
+        // «/tmp/mi» y un 127 sobre algo que sí se podía ejecutar.
+        let invocacion = leer_de_con(&["-e", "/tmp/mi programa"], |p| p == "/tmp/mi programa");
+
+        assert_eq!(invocacion.comando, comando(&["/tmp/mi programa"]));
     }
 
     #[test]

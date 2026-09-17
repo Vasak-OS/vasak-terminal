@@ -1,8 +1,7 @@
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use serde::Serialize;
 use std::{
-    env,
-    fs,
+    env, fs,
     io::{Read, Write},
     path::Path,
     sync::Arc,
@@ -88,7 +87,10 @@ fn spawn_reader(
                         // crece sin techo si la vista nunca vuelve.
                         continue;
                     };
-                    if canal.send(InvokeResponseBody::Raw(buf[..n].to_vec())).is_err() {
+                    if canal
+                        .send(InvokeResponseBody::Raw(buf[..n].to_vec()))
+                        .is_err()
+                    {
                         break;
                     }
                 }
@@ -198,7 +200,12 @@ fn read_shell_status_linux(shell_pid: u32) -> ShellStatus {
 
     let (pgrp, tpgid) = match read_proc_stat_pgrp_tpgid(shell_pid) {
         Some(values) => values,
-        None => return ShellStatus { cwd, running_command: None },
+        None => {
+            return ShellStatus {
+                cwd,
+                running_command: None,
+            }
+        }
     };
 
     // The controlling terminal's foreground process-group id (tpgid) equals the
@@ -211,7 +218,10 @@ fn read_shell_status_linux(shell_pid: u32) -> ShellStatus {
         None
     };
 
-    ShellStatus { cwd, running_command }
+    ShellStatus {
+        cwd,
+        running_command,
+    }
 }
 
 async fn get_or_create_session(
@@ -231,7 +241,10 @@ async fn get_or_create_session(
     Ok(new_session)
 }
 
-async fn get_session(state: &State<'_, AppState>, session_id: &str) -> Result<Arc<TerminalSession>, String> {
+async fn get_session(
+    state: &State<'_, AppState>,
+    session_id: &str,
+) -> Result<Arc<TerminalSession>, String> {
     let sessions = state.sessions.lock().await;
     sessions
         .get(session_id)
@@ -336,12 +349,7 @@ pub async fn async_create_shell(
                 });
                 // Start streaming PTY output to the frontend (push model).
                 if let Some(reader) = session.reader.lock().await.take() {
-                    spawn_reader(
-                        app.clone(),
-                        session.clone(),
-                        session_id.to_string(),
-                        reader,
-                    );
+                    spawn_reader(app.clone(), session.clone(), session_id.to_string(), reader);
                 }
                 return Ok(());
             }
@@ -361,7 +369,11 @@ pub async fn async_create_shell(
 }
 
 #[tauri::command]
-pub async fn async_write_to_pty(session_id: &str, data: &str, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn async_write_to_pty(
+    session_id: &str,
+    data: &str,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let session = get_session(&state, session_id).await?;
     let mut writer = session.writer.lock().await;
     write!(writer, "{}", data).map_err(|err| err.to_string())?;
@@ -385,13 +397,11 @@ pub async fn async_resize_pty(
         // La pestaña se cerró mientras llegaba el redimensionado.
         return Ok(());
     };
-    let resize_result = par
-        .master
-        .resize(PtySize {
-            rows,
-            cols,
-            ..Default::default()
-        });
+    let resize_result = par.master.resize(PtySize {
+        rows,
+        cols,
+        ..Default::default()
+    });
 
     resize_result.map_err(|err| err.to_string())
 }
@@ -410,7 +420,9 @@ pub async fn async_close_shell(session_id: &str, state: State<'_, AppState>) -> 
     // La bandera sola no alcanza: el lector está **ya** bloqueado en `read` y no
     // la consulta hasta que esa lectura devuelva. Sirve para que no arranque una
     // vuelta más, no para despertarlo.
-    sesion.vivo.store(false, std::sync::atomic::Ordering::SeqCst);
+    sesion
+        .vivo
+        .store(false, std::sync::atomic::Ordering::SeqCst);
 
     // Suelta el canal, así el lector no puede seguir escribiendo a una vista que
     // ya no existe.

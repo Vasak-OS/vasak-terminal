@@ -1,3 +1,4 @@
+pub mod argumentos;
 mod commands;
 mod structs;
 
@@ -7,6 +8,7 @@ use crate::commands::{
     async_write_to_pty, clipboard_read_text, clipboard_write_text, hide_overlay,
     is_overlay_mode, show_overlay,
 };
+use crate::argumentos::Invocacion;
 use crate::structs::{AppState, StartupCommandState};
 use shell_words::split as split_shell_words;
 use std::{
@@ -166,8 +168,32 @@ fn resolve_startup_command_from_args() -> Option<String> {
 
     build_script_command(&launch_target)
 }
-pub fn run(is_overlay: bool) {
-    let startup_command = if !is_overlay {
+pub fn run(invocacion: Invocacion) {
+    let Invocacion {
+        overlay: is_overlay,
+        comando,
+    } = invocacion;
+
+    // El comando de arranque y el `-e` son dos caminos para lo mismo y no se
+    // mezclan: `-e` nombra el programa, y esto otro mira si un argumento suelto
+    // es un directorio al que entrar o un guion que correr —lo que llega por el
+    // `%f` del .desktop—. Con un `-e` dado, ese rastreo sobra: sus argumentos
+    // son del programa, y alguno bien puede ser un archivo que existe.
+    // Que el programa exista, antes de abrir nada.
+    //
+    // Sin esto la ventana se abre igual y se queda vacía: el error sale por la
+    // consola del webview y quien la lanzó no se entera nunca. Con esto no hay
+    // ventana, hay un mensaje, y el código de salida es el 127 con el que una
+    // shell contesta «no encontré ese programa», así que un llamador puede
+    // probar con otra terminal.
+    if let Some(argv) = comando.as_ref() {
+        if !argumentos::esta_disponible(&argv[0], &argumentos::rutas_del_entorno()) {
+            eprintln!("vasak-terminal: {}: no se encontró el programa", argv[0]);
+            std::process::exit(127);
+        }
+    }
+
+    let startup_command = if !is_overlay && comando.is_none() {
         resolve_startup_command_from_args()
     } else {
         None
@@ -181,6 +207,7 @@ pub fn run(is_overlay: bool) {
                 claim: None,
             })),
             is_overlay,
+            comando: Arc::new(AsyncMutex::new(comando)),
         })
         .invoke_handler(tauri::generate_handler![
             async_write_to_pty,

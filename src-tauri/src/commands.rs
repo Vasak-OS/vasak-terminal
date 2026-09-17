@@ -1,8 +1,7 @@
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use serde::Serialize;
 use std::{
-    env,
-    fs,
+    env, fs,
     io::{Read, Write},
     path::Path,
     sync::Arc,
@@ -88,7 +87,10 @@ fn spawn_reader(
                         // crece sin techo si la vista nunca vuelve.
                         continue;
                     };
-                    if canal.send(InvokeResponseBody::Raw(buf[..n].to_vec())).is_err() {
+                    if canal
+                        .send(InvokeResponseBody::Raw(buf[..n].to_vec()))
+                        .is_err()
+                    {
                         break;
                     }
                 }
@@ -198,7 +200,12 @@ fn read_shell_status_linux(shell_pid: u32) -> ShellStatus {
 
     let (pgrp, tpgid) = match read_proc_stat_pgrp_tpgid(shell_pid) {
         Some(values) => values,
-        None => return ShellStatus { cwd, running_command: None },
+        None => {
+            return ShellStatus {
+                cwd,
+                running_command: None,
+            }
+        }
     };
 
     // The controlling terminal's foreground process-group id (tpgid) equals the
@@ -211,7 +218,10 @@ fn read_shell_status_linux(shell_pid: u32) -> ShellStatus {
         None
     };
 
-    ShellStatus { cwd, running_command }
+    ShellStatus {
+        cwd,
+        running_command,
+    }
 }
 
 async fn get_or_create_session(
@@ -231,7 +241,10 @@ async fn get_or_create_session(
     Ok(new_session)
 }
 
-async fn get_session(state: &State<'_, AppState>, session_id: &str) -> Result<Arc<TerminalSession>, String> {
+async fn get_session(
+    state: &State<'_, AppState>,
+    session_id: &str,
+) -> Result<Arc<TerminalSession>, String> {
     let sessions = state.sessions.lock().await;
     sessions
         .get(session_id)
@@ -274,25 +287,53 @@ pub async fn async_create_shell(
         *shell_started = true;
     }
 
-    let mut candidates: Vec<String> = Vec::new();
+    // El programa que pidió `-e`, si lo pidió. Se **copia** y no se saca: se
+    // borra recién cuando arrancó de verdad.
+    //
+    // Sacarlo acá lo perdía en cuanto un intento fallaba. `get_or_create_session`
+    // devuelve la misma sesión después de un fallo y `shell_started` vuelve a
+    // `false`, así que el frontend puede reintentar — y ese reintento entraba por
+    // la rama sin comando y abría **una shell en lugar del programa pedido**,
+    // que es exactamente el silencio que este camino trata de evitar.
+    let pedido = state.comando.lock().await.clone();
 
-    if let Ok(shell_env) = env::var("SHELL") {
-        let shell_env = shell_env.trim();
-        if !shell_env.is_empty() {
-            candidates.push(shell_env.to_string());
-        }
-    }
+    // Qué se va a correr, en orden de preferencia. Cada candidato es un `argv`
+    // entero y no una cadena, así que los argumentos llegan tal cual se
+    // escribieron: no hay comillas que poner ni que interpretar, y un nombre de
+    // archivo con un espacio o un apóstrofo no se parte en dos.
+    //
+    // Con `-e` hay un solo candidato y no hay respaldo. Caer a la shell cuando
+    // el programa no se puede ejecutar sería lo peor de los dos mundos: la
+    // ventana se abre, parece que funcionó, y lo que se pidió no corrió nunca.
+    let candidates: Vec<Vec<String>> = match pedido {
+        Some(argv) => vec![argv],
+        None => {
+            let mut shells: Vec<String> = Vec::new();
 
-    for shell in ["/bin/bash", "/bin/sh", "bash", "sh"] {
-        if !candidates.iter().any(|s| s == shell) {
-            candidates.push(shell.to_string());
+            if let Ok(shell_env) = env::var("SHELL") {
+                let shell_env = shell_env.trim();
+                if !shell_env.is_empty() {
+                    shells.push(shell_env.to_string());
+                }
+            }
+
+            for shell in ["/bin/bash", "/bin/sh", "bash", "sh"] {
+                if !shells.iter().any(|s| s == shell) {
+                    shells.push(shell.to_string());
+                }
+            }
+
+            shells.into_iter().map(|shell| vec![shell]).collect()
         }
-    }
+    };
 
     let mut spawn_errors: Vec<String> = Vec::new();
 
-    for shell in candidates {
-        let mut cmd = CommandBuilder::new(shell.as_str());
+    for argv in candidates {
+        let mut cmd = CommandBuilder::new(argv[0].as_str());
+        for argumento in &argv[1..] {
+            cmd.arg(argumento);
+        }
         cmd.env("TERM", "xterm-256color");
 
         let generado = {
@@ -304,6 +345,11 @@ pub async fn async_create_shell(
         };
         match generado {
             Ok(mut child) => {
+                // Arrancó: recién ahora deja de estar pendiente, así la pestaña
+                // siguiente de esta misma ventana recibe su shell y no otra
+                // copia del programa.
+                *state.comando.lock().await = None;
+
                 let pid = child.process_id();
                 if let Some(shell_pid) = pid {
                     let mut session_shell_pid = session.shell_pid.lock().await;
@@ -314,17 +360,12 @@ pub async fn async_create_shell(
                 });
                 // Start streaming PTY output to the frontend (push model).
                 if let Some(reader) = session.reader.lock().await.take() {
-                    spawn_reader(
-                        app.clone(),
-                        session.clone(),
-                        session_id.to_string(),
-                        reader,
-                    );
+                    spawn_reader(app.clone(), session.clone(), session_id.to_string(), reader);
                 }
                 return Ok(());
             }
             Err(err) => {
-                spawn_errors.push(format!("{}: {}", shell, err));
+                spawn_errors.push(format!("{}: {}", argv.join(" "), err));
             }
         }
     }
@@ -333,13 +374,17 @@ pub async fn async_create_shell(
     *shell_started = false;
 
     Err(format!(
-        "No se pudo crear la shell. Intentos: {}",
+        "No se pudo arrancar la sesión. Intentos: {}",
         spawn_errors.join(" | ")
     ))
 }
 
 #[tauri::command]
-pub async fn async_write_to_pty(session_id: &str, data: &str, state: State<'_, AppState>) -> Result<(), String> {
+pub async fn async_write_to_pty(
+    session_id: &str,
+    data: &str,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let session = get_session(&state, session_id).await?;
     let mut writer = session.writer.lock().await;
     write!(writer, "{}", data).map_err(|err| err.to_string())?;
@@ -363,13 +408,11 @@ pub async fn async_resize_pty(
         // La pestaña se cerró mientras llegaba el redimensionado.
         return Ok(());
     };
-    let resize_result = par
-        .master
-        .resize(PtySize {
-            rows,
-            cols,
-            ..Default::default()
-        });
+    let resize_result = par.master.resize(PtySize {
+        rows,
+        cols,
+        ..Default::default()
+    });
 
     resize_result.map_err(|err| err.to_string())
 }
@@ -388,7 +431,9 @@ pub async fn async_close_shell(session_id: &str, state: State<'_, AppState>) -> 
     // La bandera sola no alcanza: el lector está **ya** bloqueado en `read` y no
     // la consulta hasta que esa lectura devuelva. Sirve para que no arranque una
     // vuelta más, no para despertarlo.
-    sesion.vivo.store(false, std::sync::atomic::Ordering::SeqCst);
+    sesion
+        .vivo
+        .store(false, std::sync::atomic::Ordering::SeqCst);
 
     // Suelta el canal, así el lector no puede seguir escribiendo a una vista que
     // ya no existe.

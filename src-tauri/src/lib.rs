@@ -1,11 +1,12 @@
+pub mod argumentos;
 mod commands;
 mod structs;
 
+use crate::argumentos::Invocacion;
 use crate::commands::{
     async_close_shell, async_confirm_startup_command_delivered, async_create_shell,
-    async_get_shell_status, async_resize_pty, async_take_startup_command,
-    async_write_to_pty, clipboard_read_text, clipboard_write_text, hide_overlay,
-    is_overlay_mode, show_overlay,
+    async_get_shell_status, async_resize_pty, async_take_startup_command, async_write_to_pty,
+    clipboard_read_text, clipboard_write_text, hide_overlay, is_overlay_mode, show_overlay,
 };
 use crate::structs::{AppState, StartupCommandState};
 use shell_words::split as split_shell_words;
@@ -60,7 +61,10 @@ fn shell_escape_single_quoted(value: &str) -> String {
 fn is_probable_script(path: &Path) -> bool {
     if let Some(ext) = path.extension().and_then(|v| v.to_str()) {
         let ext = ext.to_ascii_lowercase();
-        if matches!(ext.as_str(), "sh" | "bash" | "zsh" | "ksh" | "fish" | "command") {
+        if matches!(
+            ext.as_str(),
+            "sh" | "bash" | "zsh" | "ksh" | "fish" | "command"
+        ) {
             return true;
         }
     }
@@ -166,8 +170,32 @@ fn resolve_startup_command_from_args() -> Option<String> {
 
     build_script_command(&launch_target)
 }
-pub fn run(is_overlay: bool) {
-    let startup_command = if !is_overlay {
+pub fn run(invocacion: Invocacion) {
+    let Invocacion {
+        overlay: is_overlay,
+        comando,
+    } = invocacion;
+
+    // El comando de arranque y el `-e` son dos caminos para lo mismo y no se
+    // mezclan: `-e` nombra el programa, y esto otro mira si un argumento suelto
+    // es un directorio al que entrar o un guion que correr —lo que llega por el
+    // `%f` del .desktop—. Con un `-e` dado, ese rastreo sobra: sus argumentos
+    // son del programa, y alguno bien puede ser un archivo que existe.
+    // Que el programa exista, antes de abrir nada.
+    //
+    // Sin esto la ventana se abre igual y se queda vacía: el error sale por la
+    // consola del webview y quien la lanzó no se entera nunca. Con esto no hay
+    // ventana, hay un mensaje, y el código de salida es el 127 con el que una
+    // shell contesta «no encontré ese programa», así que un llamador puede
+    // probar con otra terminal.
+    if let Some(argv) = comando.as_ref() {
+        if !argumentos::esta_disponible(&argv[0], &argumentos::rutas_del_entorno()) {
+            eprintln!("vasak-terminal: {}: no se encontró el programa", argv[0]);
+            std::process::exit(127);
+        }
+    }
+
+    let startup_command = if !is_overlay && comando.is_none() {
         resolve_startup_command_from_args()
     } else {
         None
@@ -181,6 +209,7 @@ pub fn run(is_overlay: bool) {
                 claim: None,
             })),
             is_overlay,
+            comando: Arc::new(AsyncMutex::new(comando)),
         })
         .invoke_handler(tauri::generate_handler![
             async_write_to_pty,
@@ -222,102 +251,93 @@ pub fn run(is_overlay: bool) {
         }));
 
         builder = builder.setup(|app| {
-                let window =
-                    app.get_webview_window("main").ok_or("main window not found")?;
+            let window = app
+                .get_webview_window("main")
+                .ok_or("main window not found")?;
 
-                if let Ok(gtk_tauri_win) = window.gtk_window() {
-                    use gtk::prelude::*;
-                    use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
+            if let Ok(gtk_tauri_win) = window.gtk_window() {
+                use gtk::prelude::*;
+                use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 
-                    // Compute logical dimensions
-                    let (w, h, logical_width) = if let Some(monitor) =
-                        window.primary_monitor()?
-                    {
-                        let phys = monitor.size();
-                        let scale = window.scale_factor()?;
-                        let lw = (phys.width as f64 / scale) as i32;
-                        let lh = (phys.height as f64 / scale) as i32;
-                        let w = (lw as f64 * 2.0 / 3.0) as i32;
-                        let h = (lh as f64 / 3.0).max(150.0) as i32;
-                        (w, h, lw)
-                    } else {
-                        (800, 300, 800)
-                    };
+                // Compute logical dimensions
+                let (w, h, logical_width) = if let Some(monitor) = window.primary_monitor()? {
+                    let phys = monitor.size();
+                    let scale = window.scale_factor()?;
+                    let lw = (phys.width as f64 / scale) as i32;
+                    let lh = (phys.height as f64 / scale) as i32;
+                    let w = (lw as f64 * 2.0 / 3.0) as i32;
+                    let h = (lh as f64 / 3.0).max(150.0) as i32;
+                    (w, h, lw)
+                } else {
+                    (800, 300, 800)
+                };
 
-                    // Create a fresh GTK window for layer-shell
-                    let layer_win = gtk::Window::new(gtk::WindowType::Toplevel);
-                    layer_win.set_decorated(false);
-                    layer_win.set_default_size(w, h);
-                    layer_win.set_size_request(w, h);
+                // Create a fresh GTK window for layer-shell
+                let layer_win = gtk::Window::new(gtk::WindowType::Toplevel);
+                layer_win.set_decorated(false);
+                layer_win.set_default_size(w, h);
+                layer_win.set_size_request(w, h);
 
-                    // Configure layer-shell
-                    layer_win.init_layer_shell();
-                    layer_win.set_namespace("vasak-terminal");
-                    layer_win.set_layer(Layer::Overlay);
-                    layer_win.set_anchor(Edge::Bottom, true);
-                    layer_win.set_anchor(Edge::Left, true);
-                    layer_win.set_anchor(Edge::Right, true);
-                    layer_win.set_exclusive_zone(0);
-                    let margin = (logical_width - w) / 2;
-                    layer_win.set_layer_shell_margin(Edge::Left, margin);
-                    layer_win.set_layer_shell_margin(Edge::Right, margin);
-                    layer_win.set_keyboard_mode(KeyboardMode::OnDemand);
+                // Configure layer-shell
+                layer_win.init_layer_shell();
+                layer_win.set_namespace("vasak-terminal");
+                layer_win.set_layer(Layer::Overlay);
+                layer_win.set_anchor(Edge::Bottom, true);
+                layer_win.set_anchor(Edge::Left, true);
+                layer_win.set_anchor(Edge::Right, true);
+                layer_win.set_exclusive_zone(0);
+                let margin = (logical_width - w) / 2;
+                layer_win.set_layer_shell_margin(Edge::Left, margin);
+                layer_win.set_layer_shell_margin(Edge::Right, margin);
+                layer_win.set_keyboard_mode(KeyboardMode::OnDemand);
 
-                    // RGBA visual + transparent background so the webview's
-                    // rounded‑corner CSS shows through at the window level
-                    if let Some(screen) = gtk::gdk::Screen::default() {
-                        if let Some(visual) = screen.rgba_visual() {
-                            layer_win.set_visual(Some(&visual));
-                        }
-                        let provider = gtk::CssProvider::new();
-                        provider
-                            .load_from_data(
-                                b"window { background: transparent; }",
-                            )
-                            .ok();
-                        gtk::StyleContext::add_provider_for_screen(
-                            &screen,
-                            &provider,
-                            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-                        );
+                // RGBA visual + transparent background so the webview's
+                // rounded‑corner CSS shows through at the window level
+                if let Some(screen) = gtk::gdk::Screen::default() {
+                    if let Some(visual) = screen.rgba_visual() {
+                        layer_win.set_visual(Some(&visual));
                     }
-
-                    // Reparent the WebKitWebView from the xdg window into the
-                    // layer-shell window
-                    if let Some(child) = gtk_tauri_win.child() {
-                        if let Ok(container) =
-                            child.dynamic_cast::<gtk::Container>()
-                        {
-                            if let Some(webview) = container.children().first() {
-                                container.remove(webview);
-                                layer_win.add(webview);
-                                gtk_tauri_win.hide();
-
-                            crate::commands::OVERLAY_WIN.with(
-                                |win| {
-                                    *win.borrow_mut() = Some(layer_win);
-                                },
-                            );
-                                eprintln!(
-                                    "[overlay] reparented webview: \
-                                     {}x{} margin={}",
-                                    w, h, margin
-                                );
-                            } else {
-                                eprintln!(
-                                    "[overlay] no children in container"
-                                );
-                            }
-                        } else {
-                            eprintln!("[overlay] child is not a Container");
-                        }
-                    } else {
-                        eprintln!("[overlay] no child in Tauri window");
-                    }
+                    let provider = gtk::CssProvider::new();
+                    provider
+                        .load_from_data(b"window { background: transparent; }")
+                        .ok();
+                    gtk::StyleContext::add_provider_for_screen(
+                        &screen,
+                        &provider,
+                        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+                    );
                 }
 
-                Ok(())
-            });
+                // Reparent the WebKitWebView from the xdg window into the
+                // layer-shell window
+                if let Some(child) = gtk_tauri_win.child() {
+                    if let Ok(container) = child.dynamic_cast::<gtk::Container>() {
+                        if let Some(webview) = container.children().first() {
+                            container.remove(webview);
+                            layer_win.add(webview);
+                            gtk_tauri_win.hide();
+
+                            crate::commands::OVERLAY_WIN.with(|win| {
+                                *win.borrow_mut() = Some(layer_win);
+                            });
+                            eprintln!(
+                                "[overlay] reparented webview: \
+                                     {}x{} margin={}",
+                                w, h, margin
+                            );
+                        } else {
+                            eprintln!("[overlay] no children in container");
+                        }
+                    } else {
+                        eprintln!("[overlay] child is not a Container");
+                    }
+                } else {
+                    eprintln!("[overlay] no child in Tauri window");
+                }
+            }
+
+            Ok(())
+        });
     } else {
         builder = builder.setup(|app| {
             if let Some(window) = app.get_webview_window("main") {

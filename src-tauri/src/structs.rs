@@ -39,6 +39,13 @@ pub struct AppState {
     pub sessions: Arc<AsyncMutex<HashMap<String, Arc<TerminalSession>>>>,
     pub startup_command_state: Arc<AsyncMutex<StartupCommandState>>,
     pub is_overlay: bool,
+    /// El programa que pidió la línea de comandos con `-e`, si pidió alguno.
+    ///
+    /// Se **saca** la primera vez que se crea una sesión, y por eso es un
+    /// `Option` detrás de un candado y no un campo de sólo lectura: quien abra
+    /// una pestaña nueva en esa misma ventana tiene que recibir su shell y no
+    /// otra copia del programa.
+    pub comando: Arc<AsyncMutex<Option<Vec<String>>>>,
 }
 
 pub struct StartupCommandState {

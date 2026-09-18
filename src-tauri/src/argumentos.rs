@@ -292,7 +292,7 @@ mod pruebas {
     fn un_programa_del_path_esta_disponible() {
         let dir = un_directorio_con("si-esta", "no-ejecutable");
 
-        assert!(esta_disponible("si-esta", &[dir.clone()]));
+        assert!(esta_disponible("si-esta", std::slice::from_ref(&dir)));
         assert!(!esta_disponible("no-esta", &[dir]));
     }
 

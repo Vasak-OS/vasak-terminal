@@ -1,92 +1,127 @@
 <script setup lang="ts">
+/**
+ * Las pestañas de la terminal, sobre la barra compartida.
+ *
+ * Lo que dibuja y cómo se comporta una pestaña —elegir, cerrar, reordenar, el
+ * menú, el teclado, amoldarse a una barra vertical— es de
+ * `@vasakgroup/vue-libvasak`: tres aplicaciones del escritorio tenían su propia
+ * versión y ninguna hacía exactamente lo mismo.
+ *
+ * Lo que queda acá es lo que **sí** es de la terminal: cómo se llama una
+ * pestaña. El nombre sale del comando que está corriendo, y si no hay ninguno,
+ * de la última carpeta del directorio de trabajo. Un grupo partido en dos
+ * paneles muestra los dos separados por una barra.
+ */
 import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
-import { computed, onBeforeUnmount, ref } from 'vue';
-import TabComponent from '@/components/tab/TabComponent.vue';
-import TabDraggableComponent from '@/components/tab/TabDraggableComponent.vue';
-import Tooltip from '@/components/ui/tooltip/Tooltip.vue';
-import TooltipContent from '@/components/ui/tooltip/TooltipContent.vue';
-import TooltipTrigger from '@/components/ui/tooltip/TooltipTrigger.vue';
+import { type ElementoDePestana, TabBar } from '@vasakgroup/vue-libvasak';
+import { computed, ref } from 'vue';
+import DropdownMenu from '@/components/ui/dropdown/DropdownMenu.vue';
+import DropdownMenuContent from '@/components/ui/dropdown/DropdownMenuContent.vue';
+import DropdownMenuItem from '@/components/ui/dropdown/DropdownMenuItem.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
-import type { TabGroup, Tab as TabType } from '@/types/workspaces';
-import { useReactiveIcon } from '@/utils/useReactiveIcon';
-
-const props = withDefaults(
-	defineProps<{
-		teleportTarget?: string;
-	}>(),
-	{
-		teleportTarget: '.window-toolbar-primary-teleport-target',
-	}
-);
+import type { Tab, TabGroup } from '@/types/workspaces';
 
 const workspacesStore = useWorkspacesStore();
-
 const { t } = useI18n();
 
-const teleportDisabled = computed(() => !props.teleportTarget);
-const teleportTo = computed(() => props.teleportTarget || 'body');
-const { openNewTabGroup, closeTabGroup, setTabs } = workspacesStore;
+const { openNewTabGroup, closeTabGroup, setTabs, openTabGroup } = workspacesStore;
 
-const { plusIcon } = useReactiveIcon({ plusIcon: 'gtk-add' });
-const previewEnabled = ref(true);
-const scrollContainerRef = ref<HTMLElement | null>(null);
-let scrollDisableTimeoutId: ReturnType<typeof setTimeout> | null = null;
+/** El menú de una pestaña, con el grupo sobre el que se abrió. */
+const menuAbierto = ref(false);
+const grupoDelMenu = ref<TabGroup | null>(null);
 
-function handleScrollActivity() {
-	previewEnabled.value = false;
+const grupos = computed<TabGroup[]>(() => workspacesStore.currentWorkspace?.tabGroups ?? []);
 
-	if (scrollDisableTimeoutId !== null) {
-		clearTimeout(scrollDisableTimeoutId);
+/** Lo que muestra una pestaña: el comando, o la carpeta, o el nombre. */
+function etiquetaDe(tab: Tab): string {
+	const comando = tab.runtimeCommand?.trim();
+	if (comando) return comando;
+
+	const cwd = tab.runtimeCwd?.trim();
+	if (cwd) {
+		const partes = cwd.replace(/\/$/, '').split('/').filter(Boolean);
+		return partes[partes.length - 1] || '/';
 	}
 
-	scrollDisableTimeoutId = globalThis.setTimeout(() => {
-		previewEnabled.value = true;
-	}, 200);
+	return tab.name || tab.path;
 }
 
-function handleWheel(event: WheelEvent) {
-	const container = scrollContainerRef.value;
-	if (!container) return;
-	container.scrollLeft += event.deltaY || event.deltaX || 0;
+/** Un grupo partido en dos paneles muestra los dos. */
+function etiquetaDelGrupo(grupo: TabGroup): string {
+	const nombres = grupo.map(etiquetaDe).filter(Boolean);
+	return nombres.join(' | ');
 }
 
-function onScroll() {
-	handleScrollActivity();
+const pestanas = computed<ElementoDePestana[]>(() =>
+	grupos.value.map((grupo) => ({
+		id: grupo[0]?.id ?? '',
+		label: etiquetaDelGrupo(grupo),
+		// El directorio entero en el texto de ayuda: en la pestaña sólo entra la
+		// última carpeta, y dos proyectos con la misma última carpeta se ven
+		// idénticos.
+		tooltip: grupo[0]?.runtimeCwd || grupo[0]?.path || undefined,
+	}))
+);
+
+const activa = computed(
+	() => grupos.value[workspacesStore.currentWorkspace?.currentTabGroupIndex ?? 0]?.[0]?.id ?? ''
+);
+
+function grupoDe(id: string): TabGroup | undefined {
+	return grupos.value.find((grupo) => grupo[0]?.id === id);
 }
 
-onBeforeUnmount(() => {
-	if (scrollDisableTimeoutId !== null) {
-		clearTimeout(scrollDisableTimeoutId);
-	}
-});
+function elegir(id: string) {
+	const grupo = grupoDe(id);
+	if (grupo) openTabGroup(grupo);
+}
+
+function cerrar(id: string) {
+	const grupo = grupoDe(id);
+	if (grupo) closeTabGroup(grupo);
+}
+
+function abrirElMenu(carga: { id: string }) {
+	grupoDelMenu.value = grupoDe(carga.id) ?? null;
+	menuAbierto.value = true;
+}
+
+async function cerrarLasDemas() {
+	if (grupoDelMenu.value) await workspacesStore.closeOtherTabGroups(grupoDelMenu.value);
+	menuAbierto.value = false;
+}
+
+async function cerrarTodas() {
+	await workspacesStore.closeAllTabGroups();
+	menuAbierto.value = false;
+}
+
+/** La lista nueva llega entera: se guarda tal cual. */
+function reordenar(nuevas: ElementoDePestana[]) {
+	const porId = new Map(grupos.value.map((grupo) => [grupo[0]?.id ?? '', grupo]));
+	const ordenados = nuevas
+		.map((pestana) => porId.get(pestana.id))
+		.filter((grupo): grupo is TabGroup => Boolean(grupo));
+	setTabs(ordenados);
+}
 </script>
 
 <template>
-  <Teleport :to="teleportTo" :disabled="teleportDisabled">
-    <div class="flex max-w-[calc(100vw-288px)] h-full items-center gap-1 animate-sigma-ui-fade-in">
-      <div ref="scrollContainerRef" class="flex overflow-auto items-center" @wheel.prevent="handleWheel" @scroll="onScroll">
-        <div class="tab-bar__base flex w-fit items-center justify-center h-fit">
-          <TabDraggableComponent :items="workspacesStore.currentWorkspace?.tabGroups || []"
-            :draggable-bg-color-var="'window-toolbar-color'" parent-selector=".tab-bar"
-            @set="setTabs($event as TabGroup[])" @drag-start="previewEnabled = false" @drag-end="previewEnabled = true">
-            <template #item="{ item }">
-              <TabComponent :tab-group="((item as TabType[]) || [])" :preview-enabled="previewEnabled"
-                @close-tab="closeTabGroup($event)" />
-            </template>
-          </TabDraggableComponent>
-        </div>
-      </div>
+  <TabBar
+    :tabs="pestanas"
+    :model-value="activa"
+    :new-label="t('tabs.newTab')"
+    :close-label="t('tabs.close')"
+    @select="elegir"
+    @close="cerrar"
+    @new="openNewTabGroup()"
+    @reorder="reordenar"
+    @menu="abrirElMenu" />
 
-      <Tooltip>
-        <TooltipTrigger as-child>
-          <button class="rounded-corner p-1 flex justify-center items-center bg-primary text-tx-on-primary h-5 w-5" variant="ghost" size="xs" @click="openNewTabGroup()">
-            <img v-if="plusIcon" :src="plusIcon" alt="Add Tab" class="w-3.5 h-3.5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {{ t('tabs.newTab') }}
-        </TooltipContent>
-      </Tooltip>
-    </div>
-  </Teleport>
+  <DropdownMenu v-model:open="menuAbierto">
+    <DropdownMenuContent>
+      <DropdownMenuItem @select="cerrarLasDemas">{{ t('tabs.closeOtherTabs') }}</DropdownMenuItem>
+      <DropdownMenuItem @select="cerrarTodas">{{ t('tabs.closeAllTabs') }}</DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 </template>

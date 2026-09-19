@@ -1,13 +1,15 @@
 <script lang="ts" setup>
+import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
+import { WindowFrame } from '@vasakgroup/vue-libvasak';
 import { computed } from 'vue';
 import TabBarComponent from '@/components/tab/TabBarComponent.vue';
 import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
-import TopBarComponent from '@/components/topbar/TopBarComponent.vue';
 import NotificationToast from '@/components/ui/notification/NotificationToast.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab } from '@/types/workspaces';
 import { useReactiveIcon } from '@/utils/useReactiveIcon';
 
+const { t } = useI18n();
 const workspacesStore = useWorkspacesStore();
 const currentSessionId = computed(() => workspacesStore.currentTab?.id ?? '');
 const terminalTabs = computed<Tab[]>(() =>
@@ -18,13 +20,22 @@ const terminalTabs = computed<Tab[]>(() =>
 const { terminalIcon } = useReactiveIcon({ terminalIcon: { name: 'terminal', type: 'icon' } });
 </script>
 <template>
-  <div
-    class="h-screen w-screen bg-ui-bg/80 rounded-corner-window flex flex-col border border-ui-border overflow-hidden">
-    <TopBarComponent>
-      <img :src="terminalIcon" alt="Terminal Icon" class="w-7 h-7 mr-2" />
-      <TabBarComponent teleport-target="" />
-    </TopBarComponent>
-    <div class="flex-1 flex p-1">
+  <WindowFrame
+    :minimize-label="t('windowControls.minimize')"
+    :maximize-label="t('windowControls.maximize')"
+    :close-label="t('windowControls.close')">
+    <template #identidad>
+      <!-- Decorativo: el nombre de la ventana lo dice el gestor de ventanas, y
+           un `alt` que lo repita se lo hace leer dos veces a un lector de
+           pantalla. -->
+      <img :src="terminalIcon" alt="" aria-hidden="true" class="h-7 w-7" />
+    </template>
+
+    <template #barra>
+      <TabBarComponent />
+    </template>
+
+    <div class="flex min-h-0 min-w-0 flex-1 p-1">
       <TerminalComponent
         v-for="tab in terminalTabs"
         :key="tab.id"
@@ -34,5 +45,5 @@ const { terminalIcon } = useReactiveIcon({ terminalIcon: { name: 'terminal', typ
       />
     </div>
     <NotificationToast />
-  </div>
+  </WindowFrame>
 </template>

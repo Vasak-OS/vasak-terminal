@@ -11,13 +11,12 @@
  * librería y se prueba allá.
  */
 
-import { beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { TabBar, WindowFrame } from '@vasakgroup/vue-libvasak';
-import { mount } from '@vue/test-utils';
+import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import TabBarComponent from '@/components/tab/TabBarComponent.vue';
-import DropdownMenuItem from '@/components/ui/dropdown/DropdownMenuItem.vue';
 import WindowAppLayout from '@/layouts/WindowAppLayout.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab } from '@/types/workspaces';
@@ -35,6 +34,15 @@ function unaPestana(cambios: Partial<Tab> = {}): Tab {
 	};
 }
 
+/**
+ * Desmontar lo de cada prueba antes de la siguiente.
+ *
+ * El menú se teletransporta al `body` y las pruebas lo buscan ahí, no en el
+ * envoltorio: sin desmontar, el menú de una prueba sigue puesto en la que
+ * viene y `[role="menuitem"]` devuelve las opciones de las tres.
+ */
+enableAutoUnmount(afterEach);
+
 /** La barra de pestañas con los grupos que se le pongan al store. */
 async function montarLaBarra(grupos: Tab[][]) {
 	const pinia = createPinia();
@@ -45,15 +53,24 @@ async function montarLaBarra(grupos: Tab[][]) {
 		espacio.tabGroups = grupos;
 		espacio.currentTabGroupIndex = 0;
 	}
-	const vista = mount(TabBarComponent, { global: { plugins: [pinia] } });
+	const vista = mount(TabBarComponent, {
+		attachTo: document.body,
+		global: { plugins: [pinia] },
+	});
 	await nextTick();
 	return { vista, store };
+}
+
+/** Las opciones del menú, buscadas en el documento como las busca un lector. */
+function lasOpciones(): HTMLElement[] {
+	return Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'));
 }
 
 beforeEach(() => {
 	olvidarTodo();
 	responder('get_shells', []);
 });
+
 
 describe('la ventana', () => {
 	test('usa el marco compartido y ya no dibuja el suyo', async () => {
@@ -166,12 +183,45 @@ describe('el menú de una pestaña', () => {
 
 		vista.findComponent(TabBar).vm.$emit('menu', { id: 'b', x: 10, y: 10 });
 		await nextTick();
-		// Por componente y no por selector: el contenido se teletransporta al
-		// `body` y sus elementos son `div` sin clase ni `role` propio, así que
-		// no hay con qué encontrarlos en el documento.
-		vista.findAllComponents(DropdownMenuItem)[0].vm.$emit('select');
+		lasOpciones()[0]?.click();
 		await nextTick();
 
 		expect(cerradas).toEqual(['b']);
+	});
+
+	test('es un menú de verdad, y se recorre con el teclado', async () => {
+		// El desplegable era un `div` teletransportado con un `div` por opción:
+		// esta misma prueba tenía que buscar la opción por componente porque en
+		// el documento no había ningún selector con el que encontrarla. Ahora
+		// es de `@vasakgroup/vue-libvasak` y se busca por `role`, que es lo que
+		// mira un lector de pantalla.
+		const grupos = [[unaPestana({ id: 'a' })], [unaPestana({ id: 'b' })]];
+		const { vista, store } = await montarLaBarra(grupos);
+		let todas = false;
+		store.closeAllTabGroups = async () => {
+			todas = true;
+		};
+
+		vista.findComponent(TabBar).vm.$emit('menu', { id: 'a', x: 10, y: 10 });
+		await nextTick();
+		await nextTick();
+
+		const menu = document.querySelector('[role="menu"]');
+		expect(menu).not.toBeNull();
+		expect(lasOpciones()).toHaveLength(2);
+
+		// Abierto con el puntero el foco va al menú; de ahí, las flechas.
+		expect(document.activeElement).toBe(menu as HTMLElement);
+		(document.activeElement as HTMLElement).dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })
+		);
+		expect(document.activeElement).toBe(lasOpciones()[1] as HTMLElement);
+
+		(document.activeElement as HTMLElement).dispatchEvent(
+			new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+		);
+		await nextTick();
+
+		expect(todas).toBe(true);
 	});
 });

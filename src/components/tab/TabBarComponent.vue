@@ -5,7 +5,8 @@
  * Lo que dibuja y cómo se comporta una pestaña —elegir, cerrar, reordenar, el
  * menú, el teclado, amoldarse a una barra vertical— es de
  * `@vasakgroup/vue-libvasak`: tres aplicaciones del escritorio tenían su propia
- * versión y ninguna hacía exactamente lo mismo.
+ * versión y ninguna hacía exactamente lo mismo. El desplegable del menú también:
+ * el que había acá era un `div` por opción, sin `role` ni teclado.
  *
  * Lo que queda acá es lo que **sí** es de la terminal: cómo se llama una
  * pestaña. El nombre sale del comando que está corriendo, y si no hay ninguno,
@@ -13,12 +14,15 @@
  * paneles muestra los dos separados por una barra.
  */
 import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
-import { type ElementoDePestana, TabBar } from '@vasakgroup/vue-libvasak';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+	type ElementoDePestana,
+	TabBar,
+} from '@vasakgroup/vue-libvasak';
 import { computed, ref } from 'vue';
-import DropdownMenu from '@/components/ui/dropdown/DropdownMenu.vue';
-import DropdownMenuContent from '@/components/ui/dropdown/DropdownMenuContent.vue';
-import DropdownMenuItem from '@/components/ui/dropdown/DropdownMenuItem.vue';
-import DropdownMenuTrigger from '@/components/ui/dropdown/DropdownMenuTrigger.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab, TabGroup } from '@/types/workspaces';
 
@@ -97,14 +101,14 @@ function abrirElMenu(carga: { id: string; x: number; y: number }) {
 	menuAbierto.value = true;
 }
 
+// Sin cerrar el menú a mano: el ítem lo cierra al elegirse, y además devuelve
+// el foco a donde estaba. Cerrarlo acá encima se lo saltea.
 async function cerrarLasDemas() {
 	if (grupoDelMenu.value) await workspacesStore.closeOtherTabGroups(grupoDelMenu.value);
-	menuAbierto.value = false;
 }
 
 async function cerrarTodas() {
 	await workspacesStore.closeAllTabGroups();
-	menuAbierto.value = false;
 }
 
 /** La lista nueva llega entera: se guarda tal cual. */

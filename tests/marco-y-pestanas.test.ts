@@ -17,6 +17,7 @@ import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import TabBarComponent from '@/components/tab/TabBarComponent.vue';
+import DropdownMenuItem from '@/components/ui/dropdown/DropdownMenuItem.vue';
 import WindowAppLayout from '@/layouts/WindowAppLayout.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab } from '@/types/workspaces';
@@ -136,5 +137,41 @@ describe('lo que llega al store', () => {
 		await nextTick();
 
 		expect(store.currentWorkspace?.tabGroups.map((grupo) => grupo[0]?.id)).toEqual(['b', 'a']);
+	});
+});
+
+describe('el menú de una pestaña', () => {
+	test('se abre donde se apretó y no en la esquina', async () => {
+		// El desplegable se ubica midiendo un elemento, y la librería emite
+		// coordenadas: sin un ancla en ese punto el menú salía en (0, 0).
+		const { vista } = await montarLaBarra([[unaPestana({ id: 'a' })]]);
+
+		vista.findComponent(TabBar).vm.$emit('menu', { id: 'a', x: 240, y: 96 });
+		await nextTick();
+
+		const ancla = vista.find('.fixed.size-0');
+		expect(ancla.exists()).toBe(true);
+		expect(ancla.attributes('style')).toContain('left: 240px');
+		expect(ancla.attributes('style')).toContain('top: 96px');
+	});
+
+	test('y sabe sobre cuál se abrió', async () => {
+		// «Cerrar las demás» necesita saber cuál es «ésta».
+		const grupos = [[unaPestana({ id: 'a' })], [unaPestana({ id: 'b' })]];
+		const { vista, store } = await montarLaBarra(grupos);
+		let cerradas: string[] = [];
+		store.closeOtherTabGroups = async (grupo) => {
+			cerradas = [grupo[0]?.id ?? ''];
+		};
+
+		vista.findComponent(TabBar).vm.$emit('menu', { id: 'b', x: 10, y: 10 });
+		await nextTick();
+		// Por componente y no por selector: el contenido se teletransporta al
+		// `body` y sus elementos son `div` sin clase ni `role` propio, así que
+		// no hay con qué encontrarlos en el documento.
+		vista.findAllComponents(DropdownMenuItem)[0].vm.$emit('select');
+		await nextTick();
+
+		expect(cerradas).toEqual(['b']);
 	});
 });

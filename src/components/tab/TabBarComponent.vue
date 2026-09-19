@@ -18,6 +18,7 @@ import { computed, ref } from 'vue';
 import DropdownMenu from '@/components/ui/dropdown/DropdownMenu.vue';
 import DropdownMenuContent from '@/components/ui/dropdown/DropdownMenuContent.vue';
 import DropdownMenuItem from '@/components/ui/dropdown/DropdownMenuItem.vue';
+import DropdownMenuTrigger from '@/components/ui/dropdown/DropdownMenuTrigger.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab, TabGroup } from '@/types/workspaces';
 
@@ -29,6 +30,15 @@ const { openNewTabGroup, closeTabGroup, setTabs, openTabGroup } = workspacesStor
 /** El menú de una pestaña, con el grupo sobre el que se abrió. */
 const menuAbierto = ref(false);
 const grupoDelMenu = ref<TabGroup | null>(null);
+/**
+ * Dónde se apretó, para que el menú salga ahí.
+ *
+ * El desplegable se ubica contra un elemento —le pide su rectángulo—, y la
+ * librería emite coordenadas. El puente es un ancla de cero por cero fija en
+ * ese punto: sin ella el menú no tenía contra qué medirse y salía en la esquina
+ * de la ventana.
+ */
+const anclaDelMenu = ref({ x: 0, y: 0 });
 
 const grupos = computed<TabGroup[]>(() => workspacesStore.currentWorkspace?.tabGroups ?? []);
 
@@ -81,8 +91,9 @@ function cerrar(id: string) {
 	if (grupo) closeTabGroup(grupo);
 }
 
-function abrirElMenu(carga: { id: string }) {
+function abrirElMenu(carga: { id: string; x: number; y: number }) {
 	grupoDelMenu.value = grupoDe(carga.id) ?? null;
+	anclaDelMenu.value = { x: carga.x, y: carga.y };
 	menuAbierto.value = true;
 }
 
@@ -119,6 +130,14 @@ function reordenar(nuevas: ElementoDePestana[]) {
     @menu="abrirElMenu" />
 
   <DropdownMenu v-model:open="menuAbierto">
+    <!-- El ancla: cero por cero, en el punto donde se abrió el menú. Es lo que
+         el desplegable mide para ubicarse. -->
+    <DropdownMenuTrigger>
+      <span
+        class="pointer-events-none fixed size-0"
+        :style="{ left: `${anclaDelMenu.x}px`, top: `${anclaDelMenu.y}px` }"
+        aria-hidden="true" />
+    </DropdownMenuTrigger>
     <DropdownMenuContent>
       <DropdownMenuItem @select="cerrarLasDemas">{{ t('tabs.closeOtherTabs') }}</DropdownMenuItem>
       <DropdownMenuItem @select="cerrarTodas">{{ t('tabs.closeAllTabs') }}</DropdownMenuItem>

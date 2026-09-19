@@ -1,7 +1,7 @@
 {
   "name": "vasak-terminal",
   "private": true,
-  "version": "0.5.1",
+  "version": "0.6.0",
   "type": "module",
   "scripts": {
     "dev": "bunx --bun vite",
@@ -22,6 +22,7 @@
     "@vasakgroup/plugin-vsk-contextual-menu": "^2.0.2",
     "@vasakgroup/plugin-vsk-journal": "^2.0.0",
     "@vasakgroup/tauri-plugin-i18n": "^2.3.0",
+    "@vasakgroup/vue-libvasak": "^0.4.1",
     "lodash.clonedeep": "^4.5.0",
     "path": "^0.12.7",
     "pinia": "^3.0.4",
@@ -33,11 +34,14 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.12",
+    "@happy-dom/global-registrator": "^20.14.5",
     "@tailwindcss/postcss": "^4.3.3",
     "@tauri-apps/cli": "^2.11.4",
     "@types/lodash.clonedeep": "^4.5.9",
     "@types/node": "^25.9.5",
     "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/compiler-sfc": "^3.5.43",
+    "@vue/test-utils": "^2.5.1",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",

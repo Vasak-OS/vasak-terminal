@@ -1,15 +1,14 @@
 <script lang="ts" setup>
-import { useI18n } from '@vasakgroup/tauri-plugin-i18n';
-import { WindowFrame } from '@vasakgroup/vue-libvasak';
+import { ToastArea, WindowFrame } from '@vasakgroup/vue-libvasak';
 import { computed } from 'vue';
 import TabBarComponent from '@/components/tab/TabBarComponent.vue';
 import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
-import NotificationToast from '@/components/ui/notification/NotificationToast.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab } from '@/types/workspaces';
+import { useNotification } from '@/utils/useNotification';
 import { useReactiveIcon } from '@/utils/useReactiveIcon';
 
-const { t } = useI18n();
+const { notifications } = useNotification();
 const workspacesStore = useWorkspacesStore();
 const currentSessionId = computed(() => workspacesStore.currentTab?.id ?? '');
 const terminalTabs = computed<Tab[]>(() =>
@@ -20,10 +19,7 @@ const terminalTabs = computed<Tab[]>(() =>
 const { terminalIcon } = useReactiveIcon({ terminalIcon: { name: 'terminal', type: 'icon' } });
 </script>
 <template>
-  <WindowFrame
-    :minimize-label="t('windowControls.minimize')"
-    :maximize-label="t('windowControls.maximize')"
-    :close-label="t('windowControls.close')">
+  <WindowFrame>
     <template #identidad>
       <!-- Decorativo: el nombre de la ventana lo dice el gestor de ventanas, y
            un `alt` que lo repita se lo hace leer dos veces a un lector de
@@ -44,6 +40,6 @@ const { terminalIcon } = useReactiveIcon({ terminalIcon: { name: 'terminal', typ
         :active="tab.id === currentSessionId"
       />
     </div>
-    <NotificationToast />
+    <ToastArea :toasts="notifications" position="bottom-center" />
   </WindowFrame>
 </template>

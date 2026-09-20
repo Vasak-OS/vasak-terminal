@@ -16,9 +16,9 @@
     "copied": "Copied to the clipboard",
     "clipboardError": "The clipboard could not be used"
   },
-  "windowControls": {
-    "minimize": "Minimize",
-    "maximize": "Maximize",
-    "close": "Close"
+  "ventana": {
+    "minimizar": "Minimize",
+    "maximizar": "Maximize",
+    "cerrar": "Close"
   }
 }

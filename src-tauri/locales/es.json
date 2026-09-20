@@ -16,9 +16,9 @@
     "copied": "Copiado al portapapeles",
     "clipboardError": "No se pudo usar el portapapeles"
   },
-  "windowControls": {
-    "minimize": "Minimizar",
-    "maximize": "Maximizar",
-    "close": "Cerrar"
+  "ventana": {
+    "minimizar": "Minimizar",
+    "maximizar": "Maximizar",
+    "cerrar": "Cerrar"
   }
 }

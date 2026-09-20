@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { ToastArea } from '@vasakgroup/vue-libvasak';
 import { computed, nextTick, onMounted, ref } from 'vue';
 import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
-import NotificationToast from '@/components/ui/notification/NotificationToast.vue';
 import { useOverlay } from '@/composables/useOverlay';
 import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab } from '@/types/workspaces';
+import { useNotification } from '@/utils/useNotification';
 
+const { notifications } = useNotification();
 const workspacesStore = useWorkspacesStore();
 const { hide, isVisible } = useOverlay();
 
@@ -44,7 +46,7 @@ onMounted(async () => {
       :session-id="tab.id"
       :active="tab.id === currentSessionId"
     />
-    <NotificationToast />
+    <ToastArea :toasts="notifications" position="bottom-center" />
   </div>
 </template>
 

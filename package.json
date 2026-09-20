@@ -1,7 +1,7 @@
 {
   "name": "vasak-terminal",
   "private": true,
-  "version": "0.6.6",
+  "version": "0.6.7",
   "type": "module",
   "scripts": {
     "dev": "bunx --bun vite",
@@ -22,7 +22,7 @@
     "@vasakgroup/plugin-vsk-contextual-menu": "^2.0.2",
     "@vasakgroup/plugin-vsk-journal": "^2.0.0",
     "@vasakgroup/tauri-plugin-i18n": "^2.3.0",
-    "@vasakgroup/vue-libvasak": "^0.7.0",
+    "@vasakgroup/vue-libvasak": "^0.7.2",
     "lodash.clonedeep": "^4.5.0",
     "path": "^0.12.7",
     "pinia": "^3.0.4",

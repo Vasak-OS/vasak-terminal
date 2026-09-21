@@ -12,7 +12,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { TabBar, WindowFrame } from '@vasakgroup/vue-libvasak';
+import { olvidarLosIconosDelTema, TabBar, WindowFrame } from '@vasakgroup/vue-libvasak';
 import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
@@ -68,8 +68,22 @@ function lasOpciones(): HTMLElement[] {
 
 beforeEach(() => {
 	olvidarTodo();
+	// La memoria de iconos de la librería vive en su módulo y se comparte entre
+	// archivos de prueba: sin esto, el primero que pida un icono con los dobles
+	// sin preparar deja guardado lo que resolvió entonces.
+	olvidarLosIconosDelTema();
 	responder('get_shells', []);
 });
+
+/**
+ * Deja que `ThemeIcon` resuelva.
+ *
+ * El icono se pide al montar y vuelve por promesa, así que hasta que no vuelve
+ * el componente dibuja el hueco del mismo tamaño y no una imagen.
+ */
+async function asentar(vueltas = 6) {
+	for (let i = 0; i < vueltas; i++) await nextTick();
+}
 
 
 describe('la ventana', () => {
@@ -82,6 +96,24 @@ describe('la ventana', () => {
 		await nextTick();
 
 		expect(vista.findComponent(WindowFrame).exists()).toBe(true);
+	});
+
+	test('el icono de la ventana es el de la terminal, a color', async () => {
+		// A color y no el símbolo: es la identidad de la ventana, como en el
+		// resto del escritorio. Pedir la variante que no es **no falla**, dibuja
+		// otra cosa, así que el doble devuelve `icono:` o `simbolo:` con el
+		// nombre adentro y acá se comprueba cuál se pidió.
+		const pinia = createPinia();
+		setActivePinia(pinia);
+		const vista = mount(WindowAppLayout, { global: { plugins: [pinia] } });
+		await asentar();
+
+		const icono = vista.find('img');
+		expect(icono.exists()).toBe(true);
+		expect(icono.attributes('src')).toBe('icono:terminal');
+		// Decorativo: el nombre de la ventana lo dice el gestor de ventanas, y
+		// repetirlo acá se lo hace leer dos veces a un lector de pantalla.
+		expect(icono.attributes('alt')).toBe('');
 	});
 
 	test('y las pestañas van en la barra, no sueltas en la ventana', async () => {

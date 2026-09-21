@@ -1,12 +1,11 @@
 <script lang="ts" setup>
-import { ToastArea, WindowFrame } from '@vasakgroup/vue-libvasak';
+import { ThemeIcon, ToastArea, WindowFrame } from '@vasakgroup/vue-libvasak';
 import { computed } from 'vue';
 import TabBarComponent from '@/components/tab/TabBarComponent.vue';
 import TerminalComponent from '@/components/terminal/TerminalComponent.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
 import type { Tab } from '@/types/workspaces';
 import { useNotification } from '@/utils/useNotification';
-import { useReactiveIcon } from '@/utils/useReactiveIcon';
 
 const { notifications } = useNotification();
 const workspacesStore = useWorkspacesStore();
@@ -16,15 +15,19 @@ const terminalTabs = computed<Tab[]>(() =>
 		.map((tabGroup) => tabGroup?.[0])
 		.filter((tab): tab is Tab => Boolean(tab))
 );
-const { terminalIcon } = useReactiveIcon({ terminalIcon: { name: 'terminal', type: 'icon' } });
 </script>
 <template>
   <WindowFrame>
     <template #identidad>
       <!-- Decorativo: el nombre de la ventana lo dice el gestor de ventanas, y
            un `alt` que lo repita se lo hace leer dos veces a un lector de
-           pantalla. -->
-      <img :src="terminalIcon" alt="" aria-hidden="true" class="h-7 w-7" />
+           pantalla. `ThemeIcon` deja el `alt` vacío por omisión, que es lo que
+           hace que un lector lo ignore.
+
+           A color y no el símbolo: es la identidad de la ventana, como en el
+           resto del escritorio. `icon` es lo que `ThemeIcon` trae por omisión,
+           pero acá va escrito porque es una decisión y no un descuido. -->
+      <ThemeIcon name="terminal" type="icon" :size="28" />
     </template>
 
     <template #barra>

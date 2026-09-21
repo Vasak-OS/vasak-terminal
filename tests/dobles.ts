@@ -92,25 +92,49 @@ export function useI18n() {
 const temaDeIconos = new Map<string, string | (() => Promise<string>)>();
 
 /** Pone un nombre en el tema de íconos. */
-export function ponerEnElTema(nombre: string, fuente: string | (() => Promise<string>)) {
-	temaDeIconos.set(nombre, fuente);
+/**
+ * Pone un icono en el tema de mentira.
+ *
+ * `tipo` va en la clave porque el tema tiene **dos versiones de casi todo**: la
+ * de color y la simbólica, que son dos archivos distintos. Pedir la que no está
+ * no falla, devuelve el icono de imagen rota, así que una prueba que quiera
+ * comprobar cuál se pidió necesita poder distinguirlas.
+ */
+export function ponerEnElTema(
+	nombre: string,
+	fuente: string | (() => Promise<string>),
+	tipo: 'icono' | 'simbolo' = 'icono'
+) {
+	temaDeIconos.set(`${tipo}:${nombre}`, fuente);
 }
 
 /**
- * Lo que el tema no tiene vuelve como cadena vacía, no como error.
+ * La fuente de un icono del tema, con el tipo adentro.
  *
- * Es lo que hace el plugin de verdad: atrapa lo suyo, lo escribe en la consola
- * y devuelve `''`. Que el doble lanzara sería más estricto que la realidad y
- * haría fallar a componentes que no tienen por qué atrapar nada.
+ * Lo que no se puso a mano vuelve como `icono:<nombre>` o `simbolo:<nombre>` en
+ * vez de la cadena vacía. Dos razones: `ThemeIcon` **no dibuja imagen** cuando
+ * la fuente está vacía —pone el hueco del mismo tamaño para que la fila no
+ * salte—, así que buscar `img` no encontraba nada; y con el tipo adentro una
+ * prueba puede comprobar **cuál** de las dos variantes se pidió, que es lo que
+ * no se ve al mirar la pantalla y no da ningún error.
+ *
+ * Lo que sí se puso a mano puede ser la cadena vacía, que es lo que hace el
+ * plugin de verdad cuando el tema no tiene ese nombre: atrapa lo suyo, lo
+ * escribe en la consola y devuelve `''`. Que el doble lanzara sería más
+ * estricto que la realidad.
  */
-export async function getIconSource(nombre: string) {
-	const puesto = temaDeIconos.get(nombre) ?? '';
+async function delTema(clave: string) {
+	const puesto = temaDeIconos.get(clave);
+	if (puesto === undefined) return clave;
 	return typeof puesto === 'function' ? await puesto() : puesto;
 }
 
-/** Los símbolos salen del mismo tema: un doble aparte mentiría distinto. */
+export async function getIconSource(nombre: string) {
+	return await delTema(`icono:${nombre}`);
+}
+
 export async function getSymbolSource(nombre: string) {
-	return await getIconSource(nombre);
+	return await delTema(`simbolo:${nombre}`);
 }
 
 /** Deja los dobles como recién puestos. Va en el `beforeEach` de cada prueba. */

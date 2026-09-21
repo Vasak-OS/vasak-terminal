@@ -14,6 +14,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { Glob } from 'bun';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { olvidarLosIconosDelTema, ToastArea, WindowControls } from '@vasakgroup/vue-libvasak';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -158,5 +161,57 @@ describe('y el catálogo tiene las claves que la librería busca', () => {
 			const catalogo = require(`../src-tauri/locales/${idioma}.json`);
 			expect(catalogo.windowControls).toBeUndefined();
 		}
+	});
+});
+
+/**
+ * El composable de iconos que trajo el molde.
+ *
+ * Resolvía el icono con una llamada al complemento y se suscribía al cambio de
+ * tema. `ThemeIcon` hace lo mismo con una memoria compartida por nombre y tipo,
+ * el pedido en vuelo compartido, y **un solo** oyente para toda la ventana.
+ *
+ * El de acá además tenía dos agujeros que se van con él: pedía los iconos al
+ * evaluar el módulo y no al montar, y guardaba la baja del oyente en un
+ * `.then()` — si el componente se desmontaba antes de que ese `.then()`
+ * corriera, la limpieza no encontraba nada que soltar y el oyente quedaba
+ * puesto. Tampoco tenía forma de descartar una respuesta vieja, así que dos
+ * resoluciones cruzadas podían dejar puesto el icono de antes.
+ *
+ * La guardia mira la **forma** de la copia y no el nombre del archivo: lo que
+ * la define es resolver iconos del tema desde la aplicación. Ver
+ * Vasak-OS/vue-libvasak#54.
+ */
+describe('el composable de iconos del molde', () => {
+	// `fileURLToPath` y no `.pathname`: éste deja los caracteres codificados tal
+	// como están, así que un checkout en una ruta con un espacio llega con `%20`
+	// y `scanSync` no encuentra nada.
+	const FUENTE = fileURLToPath(new URL('../src/', import.meta.url));
+	const fuentes = [...new Glob('**/*.{vue,ts}').scanSync(FUENTE)];
+
+	test('hay algo que mirar', () => {
+		// Sin esto las dos de abajo pasan sobre una lista vacía, que es en lo
+		// que quedan si el patrón deja de encontrar archivos.
+		expect(fuentes).toContain('layouts/WindowAppLayout.vue');
+		expect(fuentes.length).toBeGreaterThan(5);
+	});
+
+	test('ya no está', () => {
+		expect(fuentes.filter((ruta) => ruta.includes('useReactiveIcon'))).toEqual([]);
+	});
+
+	test('y nadie resuelve iconos del tema por su cuenta', async () => {
+		// `main.ts` es la excepción y es de fondo: el menú contextual del
+		// escritorio no dibuja con Vue, pide una **función** que resuelva el
+		// nombre a una ruta porque lo pinta el complemento fuera de esta
+		// ventana. `ThemeIcon` no sirve ahí.
+		const culpables: string[] = [];
+		for (const ruta of fuentes) {
+			if (ruta === 'main.ts') continue;
+			const texto = await Bun.file(join(FUENTE, ruta)).text();
+			if (/getIconSource|getSymbolSource|vicons:theme-changed/.test(texto)) culpables.push(ruta);
+		}
+
+		expect(culpables).toEqual([]);
 	});
 });

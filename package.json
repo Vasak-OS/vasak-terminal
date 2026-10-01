@@ -1,7 +1,7 @@
 {
   "name": "vasak-terminal",
   "private": true,
-  "version": "0.9.2",
+  "version": "0.10.0",
   "type": "module",
   "scripts": {
     "dev": "bunx --bun vite",
@@ -14,43 +14,37 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@tauri-apps/api": "^2.11.1",
-    "@tauri-apps/plugin-shell": "^2.3.6",
-    "@tauri-apps/plugin-store": "^2.4.5",
-    "@vasakgroup/plugin-config-manager": "~2.6.1",
-    "@vasakgroup/plugin-vicons": "^2.2.1",
-    "@vasakgroup/plugin-vsk-contextual-menu": "^2.0.2",
-    "@vasakgroup/plugin-vsk-journal": "^2.0.0",
-    "@vasakgroup/tauri-plugin-i18n": "^2.3.0",
-    "@vasakgroup/vue-libvasak": "^1.9.0",
-    "lodash.clonedeep": "^4.5.0",
-    "path": "^0.12.7",
+    "@tauri-apps/api": "^2.12.1",
+    "@vasakgroup/plugin-config-manager": "^2.9.0",
+    "@vasakgroup/plugin-vicons": "^2.2.2",
+    "@vasakgroup/plugin-vsk-contextual-menu": "^2.0.3",
+    "@vasakgroup/plugin-vsk-journal": "^2.0.1",
+    "@vasakgroup/tauri-plugin-i18n": "^2.3.1",
+    "@vasakgroup/vue-libvasak": "^2.0.0",
     "pinia": "^3.0.4",
-    "url": "^0.11.4",
     "vue": "^3.5.43",
-    "vue3-smooth-dnd": "^0.0.6",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.14",
+    "@biomejs/biome": "^2.5.15",
     "@happy-dom/global-registrator": "^20.14.5",
-    "@tailwindcss/postcss": "^4.3.3",
-    "@tauri-apps/cli": "^2.11.5",
-    "@types/lodash.clonedeep": "^4.5.9",
-    "@types/node": "^25.9.8",
+    "@tauri-apps/cli": "^2.12.1",
+    "@types/node": "^26.6.3",
     "@vitejs/plugin-vue": "^6.0.9",
     "@vue/compiler-sfc": "^3.5.43",
     "@vue/test-utils": "^2.5.1",
-    "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "vite": "^7.3.6",
+    "vite": "^8.3.2",
     "vue-tsc": "^3.3.11"
   },
   "vasak": {
     "bibliotecasAtrasadas": {
-      "@vasakgroup/plugin-config-manager": "La 2.7.0 declara pinia ^4 y esta aplicación está en pinia 3: subir el rango arrastra un salto mayor ajeno. Por eso el rango es ~2.6.1 y no ^2.6.1, que alcanzaría una versión que no se puede instalar. Se saca al subir a pinia 4."
+      "pinia": "La 4 es un salto mayor de una biblioteca que usa el taller entero: el resto de las aplicaciones está en pinia 3 y subir sólo ésta parte el vocabulario compartido. Va en su propio PR, coordinado con el resto. config-manager 2.9 acepta las dos, así que ya no frena a nadie.",
+      "typescript": "La 7 es el compilador nativo y no expone la API de JavaScript que lee vue-tsc 3: `vue-tsc --noEmit` se cae con ERR_PACKAGE_PATH_NOT_EXPORTED antes de mirar un archivo. El rango ^5.9.3 no alcanza la 7. Se sube cuando vue-tsc publique soporte para TypeScript 7.",
+      "xterm": "El paquete `xterm` está obsoleto y sigue en `@xterm/xterm` (6.0, con `@xterm/addon-fit` 0.11): es el motor de la terminal entera y una mayor con cambios en el tema, el addon de ajuste y el dibujado, que ninguna prueba automática mira. Va en su propio PR, verificado en la ventana real con programas de pantalla completa (vim, htop) y el cambio de tema."
     }
   }
+
 }

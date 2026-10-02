@@ -37,9 +37,9 @@ const template = (file: string) => {
 	return stripHtmlComments(text.slice(text.indexOf('<template>'), text.lastIndexOf('</template>')));
 };
 
-/** Los fondos que nombra un trozo de plantilla (`bg-…`), sin variantes de estado. */
+/** Los fondos que nombra un trozo de plantilla (`bg-…`, también `!bg-` y los arbitrarios `bg-[…]`), sin variantes de estado. */
 function backgroundsOf(classes: string): string[] {
-	return [...classes.matchAll(/(?<![\w:/-])bg-([a-z][\w-]*(?:\/\d+)?)(?![\w/-])/g)].map((match) => match[1] as string);
+	return [...classes.matchAll(/(?<![\w:/-])!?bg-([a-z][\w-]*(?:\/\d+)?|\[[^\]]+\](?:\/\d+)?)(?![\w/-])/g)].map((match) => match[1] as string);
 }
 
 /** Un fondo deja ver lo de atrás si es `ui-shell`, `transparent` o lleva `/NN` < 100. */
@@ -88,8 +88,14 @@ describe('la terminal desplegable deja ver el desenfoque de Wayfire', () => {
 	});
 
 	test('ni el html ni el cuerpo pintan un fondo', () => {
+		// La expresión deja pasar un fondo transparente escrito a propósito y
+		// corta uno opaco: se prueba contra los dos antes de mirar el CSS real.
+		const pageBackground = /(?:^|[\s,}])(?:html|body|:root|#app)\s*\{[^}]*(?<![\w-])background(?:-color)?\s*:\s*(?!transparent)\S/m;
+		expect('body { background: transparent; }').not.toMatch(pageBackground);
+		expect('body { background-color: var(--color-ui-bg); }').toMatch(pageBackground);
+		expect(':root { --ui-background: #eff1f5; }').not.toMatch(pageBackground);
 		const css = read('src/assets/main.css');
-		expect(css).not.toMatch(/(?:^|[\s,}])(?:html|body|:root|#app)\s*\{[^}]*(?<![\w-])background(?:-color)?\s*:\s*(?!transparent)/m);
+		expect(css).not.toMatch(pageBackground);
 		expect(read('index.html')).not.toMatch(/style="[^"]*background/);
 	});
 
@@ -105,6 +111,8 @@ describe('la guardia de translucidez ve lo opaco cuando lo hay', () => {
 	test('rechaza el fondo con el que quedó 0.10.0 y los de antes', () => {
 		expect(surfaceProblems(['h-screen p-0.5 bg-ui-float rounded-t-corner-window'])).toEqual(['opaco: bg-ui-float']);
 		expect(surfaceProblems(['bg-ui-bg border'])).toEqual(['opaco: bg-ui-bg']);
+		// Un arbitrario con `!` pisa al `bg-ui-shell` de al lado.
+		expect(surfaceProblems(['bg-ui-shell !bg-[#fff]'])).toEqual(['opaco: bg-[#fff]']);
 		expect(surfaceProblems(['bg-ui-bg/80 backdrop-blur-md'])).toEqual(['con backdrop-blur']);
 		expect(surfaceProblems(['h-screen w-screen'])).toHaveLength(1);
 	});

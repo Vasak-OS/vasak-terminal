@@ -1,10 +1,11 @@
 /**
  * La terminal desplegable (el modo superpuesto), con la forma del taller.
  *
- * Llevaba `bg-ui-bg/80` —el fondo de la ventana, transparente— y la entrada
- * escrita en `style` con su propia curva. La superficie de lo que flota es
- * `ui-float`, opaca: una superficie de capa transparente no deja ver el
- * escritorio. Y la entrada va con los tiempos de `tokens.css`.
+ * Llevaba `bg-ui-bg/80` y la entrada escrita en `style` con su propia curva.
+ * Con la 0.10.0 pasó a `ui-float`, opaca, y tapaba el desenfoque que pone
+ * Wayfire detrás de la capa: va en `ui-shell`, la superficie translúcida del
+ * escritorio (vue-libvasak `docs/once-ui.md` §13). Y la entrada va con los
+ * tiempos de `tokens.css`.
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
@@ -28,11 +29,12 @@ function mountOverlay() {
 }
 
 describe('la terminal desplegable', () => {
-	test('va sobre la superficie que flota, opaca', () => {
+	test('va sobre la superficie translúcida del escritorio, sin desenfoque propio', () => {
 		const root = mountOverlay();
 
-		expect(root.classes()).toContain('bg-ui-float');
-		expect(root.classes().some((c) => c.startsWith('bg-ui-bg'))).toBe(false);
+		expect(root.classes()).toContain('bg-ui-shell');
+		expect(root.classes().some((c) => /^bg-ui-(?:bg|float)/.test(c))).toBe(false);
+		expect(root.classes().some((c) => c.includes('backdrop-blur'))).toBe(false);
 	});
 
 	test('entra con los tiempos del taller y no con un estilo en línea', () => {

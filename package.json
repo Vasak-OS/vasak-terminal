@@ -1,7 +1,7 @@
 {
   "name": "vasak-terminal",
   "private": true,
-  "version": "0.10.1",
+  "version": "0.11.0",
   "type": "module",
   "scripts": {
     "dev": "bunx --bun vite",
@@ -14,13 +14,13 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@tauri-apps/api": "^2.12.1",
-    "@vasakgroup/plugin-config-manager": "^2.9.0",
+    "@tauri-apps/api": "^2.12.2",
+    "@vasakgroup/plugin-config-manager": "^2.11.0",
     "@vasakgroup/plugin-vicons": "^2.2.2",
     "@vasakgroup/plugin-vsk-contextual-menu": "^2.0.3",
     "@vasakgroup/plugin-vsk-journal": "^2.0.1",
     "@vasakgroup/tauri-plugin-i18n": "^2.3.1",
-    "@vasakgroup/vue-libvasak": "^2.3.0",
+    "@vasakgroup/vue-libvasak": "^2.16.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.43",
     "xterm": "^5.3.0",
@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
-    "@happy-dom/global-registrator": "^20.14.5",
+    "@happy-dom/global-registrator": "^20.14.6",
     "@tauri-apps/cli": "^2.12.1",
     "@types/node": "^26.6.4",
     "@vitejs/plugin-vue": "^6.0.9",
@@ -36,7 +36,7 @@
     "@vue/test-utils": "^2.5.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "vite": "^8.3.2",
+    "vite": "^8.3.4",
     "vue-tsc": "^3.3.12"
   },
   "vasak": {
@@ -46,5 +46,4 @@
       "xterm": "El paquete `xterm` está obsoleto y sigue en `@xterm/xterm` (6.0, con `@xterm/addon-fit` 0.11): es el motor de la terminal entera y una mayor con cambios en el tema, el addon de ajuste y el dibujado, que ninguna prueba automática mira. Va en su propio PR, verificado en la ventana real con programas de pantalla completa (vim, htop) y el cambio de tema."
     }
   }
-
 }

@@ -30,15 +30,17 @@ onMounted(async () => {
   <div
     ref="rootEl"
     tabindex="-1"
-    class="h-screen w-screen flex flex-col p-0.5 bg-ui-bg/80 rounded-t-corner-window overflow-hidden"
-    :style="{
-      opacity: isVisible ? 1 : 0,
-      transform: isVisible ? 'translateY(0)' : 'translateY(8px)',
-      transition: 'opacity 200ms ease-out, transform 200ms ease-out',
-      willChange: 'opacity, transform',
-    }"
+    class="h-screen w-screen flex flex-col p-0.5 bg-ui-shell rounded-t-corner-window overflow-hidden transition-[opacity,transform] duration-200 ease-ui-out will-change-[opacity,transform]"
+    :class="isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'"
     @keydown.escape="hide"
   >
+    <!-- La superficie del escritorio (`ui-shell`): el fondo de la ventana al
+         85 %, translúcido y sin `backdrop-blur`. El desenfoque de lo de atrás
+         lo pone Wayfire, y sólo se ve si la superficie deja pasar algo: en
+         `ui-float`, opaca, lo tapaba (vue-libvasak `docs/once-ui.md` §13). El
+         fondo de xterm es transparente (`TerminalComponent`), así que no pinta
+         encima. La entrada va con los tiempos del taller —200 ms, `ease-ui-out`,
+         que arranca rápido y frena— en vez de una transición escrita en `style`. -->
     <TerminalComponent
       v-for="tab in terminalTabs"
       :key="tab.id"

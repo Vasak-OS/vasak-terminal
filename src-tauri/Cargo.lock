@@ -4556,7 +4556,7 @@ dependencies = [
 
 [[package]]
 name = "vasak-terminal"
-version = "0.12.1"
+version = "0.12.2"
 dependencies = [
  "gtk",
  "gtk-layer-shell",
@@ -4575,6 +4575,7 @@ dependencies = [
  "tauri-plugin-vsk-contextual-menu",
  "tauri-plugin-vsk-journal",
  "tokio",
+ "webkit2gtk",
 ]
 
 [[package]]

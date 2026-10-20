@@ -1,3 +1,5 @@
+pub mod webkit;
+
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use serde::Serialize;
 use std::{

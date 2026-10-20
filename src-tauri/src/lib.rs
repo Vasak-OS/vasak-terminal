@@ -223,7 +223,8 @@ pub fn run(invocacion: Invocacion) {
             clipboard_write_text,
             is_overlay_mode,
             show_overlay,
-            hide_overlay
+            hide_overlay,
+            commands::webkit::tune_webview
         ])
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_config_manager::init())

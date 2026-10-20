@@ -19,6 +19,10 @@ const configLoading = ref(true);
 const configError = ref(false);
 
 onMounted(async () => {
+	// Afina el WebKit de la ventana (menos caché, sin extras de desarrollo) para
+	// bajar su consumo de memoria. Sin bloquear ni romper si el backend no está.
+	invoke('tune_webview').catch(() => {});
+
 	// Que el layout se pinte primero, antes de cualquier lectura.
 	await nextTick();
 

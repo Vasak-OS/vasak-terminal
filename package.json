@@ -1,20 +1,21 @@
 {
   "name": "vasak-terminal",
   "private": true,
-  "version": "0.12.3",
+  "version": "0.12.4",
   "type": "module",
   "scripts": {
     "dev": "bunx --bun vite",
     "build": "bunx vue-tsc --noEmit && bunx --bun vite build",
     "preview": "bunx --bun vite preview",
     "tauri": "tauri",
+    "test": "bun test",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write . && bunx --bun biome format --write .",
     "format": "bunx --bun biome format --write ."
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@tauri-apps/api": "^2.12.2",
+    "@tauri-apps/api": "^2.12.4",
     "@vasakgroup/plugin-config-manager": "^2.13.0",
     "@vasakgroup/plugin-vicons": "^2.2.2",
     "@vasakgroup/plugin-vsk-contextual-menu": "^2.0.3",
@@ -22,22 +23,22 @@
     "@vasakgroup/tauri-plugin-i18n": "^2.3.1",
     "@vasakgroup/vue-libvasak": "^2.20.1",
     "pinia": "^3.0.4",
-    "vue": "^3.5.43",
+    "vue": "^3.5.44",
     "xterm": "^5.3.0",
     "xterm-addon-fit": "^0.8.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.15",
+    "@biomejs/biome": "^2.6.2",
     "@happy-dom/global-registrator": "^20.14.6",
-    "@tauri-apps/cli": "^2.12.1",
-    "@types/node": "^26.6.4",
-    "@vitejs/plugin-vue": "^6.0.9",
-    "@vue/compiler-sfc": "^3.5.43",
+    "@tauri-apps/cli": "^2.12.4",
+    "@types/node": "^26.6.5",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/compiler-sfc": "^3.5.44",
     "@vue/test-utils": "^2.5.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "vite": "^8.3.4",
-    "vue-tsc": "^3.3.12"
+    "vite": "^8.3.5",
+    "vue-tsc": "^3.3.13"
   },
   "vasak": {
     "bibliotecasAtrasadas": {

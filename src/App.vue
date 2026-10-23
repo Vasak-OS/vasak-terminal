@@ -6,6 +6,7 @@ import { nextTick, onMounted, onUnmounted, ref } from 'vue';
 import OverlayLayout from '@/components/overlay/OverlayLayout.vue';
 import WindowAppLayout from '@/layouts/WindowAppLayout.vue';
 import { useWorkspacesStore } from '@/stores/workspaces';
+import { saveTheme } from '@/tools/theme-cache';
 
 const isOverlay = ref(false);
 const unListenConfig = ref<UnlistenFn | null>(null);
@@ -38,6 +39,8 @@ onMounted(async () => {
 
 	try {
 		await configStore.loadConfig();
+		// Recordar el tema ya aplicado: el próximo arranque lo reaplica desde el `<head>`.
+		saveTheme();
 		configLoading.value = false;
 	} catch (error: any) {
 		configLoading.value = false;
@@ -52,7 +55,7 @@ onMounted(async () => {
 	try {
 		unListenConfig.value = await listen('config-changed', async () => {
 			document.startViewTransition(() => {
-				configStore.loadConfig();
+				configStore.loadConfig().then(() => saveTheme());
 			});
 		});
 	} catch (error: any) {

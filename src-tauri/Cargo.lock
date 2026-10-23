@@ -4556,7 +4556,7 @@ dependencies = [
 
 [[package]]
 name = "vasak-terminal"
-version = "0.12.3"
+version = "0.12.4"
 dependencies = [
  "gtk",
  "gtk-layer-shell",
